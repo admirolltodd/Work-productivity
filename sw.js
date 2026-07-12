@@ -1,7 +1,7 @@
 /* Bamboo Close service worker — cache-first app shell.
    Bump CACHE_VERSION whenever any shell file changes so clients pick up
    the new build on their next visit. */
-const CACHE_VERSION = 'bamboo-close-v3';
+const CACHE_VERSION = 'bamboo-close-v4';
 const SHELL = [
   './',
   './index.html',

@@ -263,7 +263,7 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
    ========================================================================= */
 
 /* ---------- Storage helpers ---------- */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const LS_PREFIX = 'bc_';
 const store = {
   get(key, fallback) {
@@ -346,7 +346,24 @@ function migrate(fromVersion) {
       v = 3;
       /* falls through */
     }
-    case 3:
+    case 3: {
+      // v3 -> v4: "soft bottles" became "sauce bottles" with the real sauce
+      // list. Old seeded bottles are ARCHIVED, not deleted, so any counts
+      // already recorded against them keep rendering in History.
+      const defs = store.get('taskDefinitions', []);
+      const oldSeed = ['Eel sauce', 'Spicy mayo', 'Tartar', 'Bamboo sauce', 'Kakesu'];
+      defs.forEach(t => {
+        if (t.list !== 'bottles') return;
+        if (t.section === 'Soft bottles') t.section = 'Sauce bottles';
+        if (oldSeed.includes(t.label)) t.archived = true;
+      });
+      const have = new Set(defs.filter(t => t.list === 'bottles').map(t => t.label));
+      buildBottleTasks().forEach(t => { if (!have.has(t.label)) defs.push(t); });
+      store.set('taskDefinitions', defs);
+      v = 4;
+      /* falls through */
+    }
+    case 4:
       // current version — nothing to do.
       break;
     default:
@@ -397,16 +414,16 @@ function buildOpeningTasks() {
   ]);
 }
 
-// Soft (squeeze) bottle inventory — pars are optional; set them in Settings
-// if you want below-par warnings + auto prep entries for bottles too.
+// Sauce bottle inventory — pars are optional; set them in Settings if you
+// want below-par warnings + auto prep entries for bottles too.
 function buildBottleTasks() {
-  return buildList('bottles', [
-    ['Soft bottles', 'Eel sauce', { type: 'count', unit: 'bottles' }],
-    ['Soft bottles', 'Spicy mayo', { type: 'count', unit: 'bottles' }],
-    ['Soft bottles', 'Tartar', { type: 'count', unit: 'bottles' }],
-    ['Soft bottles', 'Bamboo sauce', { type: 'count', unit: 'bottles' }],
-    ['Soft bottles', 'Kakesu', { type: 'count', unit: 'bottles' }]
-  ]);
+  const sauces = [
+    'Crack', 'Sassy', 'Eagle', 'Sashimi', 'M3',
+    'Sweet chili ponzu', 'Ponzu', 'Yuzu ponzu',
+    'Sriracha mayo', 'Sasquatch sauce', 'Bamboo',
+    'Ginger poké', 'Poké'
+  ];
+  return buildList('bottles', sauces.map(s => ['Sauce bottles', s, { type: 'count', unit: 'bottles' }]));
 }
 
 function seedTasks() {
@@ -667,7 +684,7 @@ function renderHome() {
     </div>
     ${big('opening', '🌅', 'Opening checklist', po.done + ' of ' + po.total + ' done')}
     ${big('closing', '🌙', 'Closing checklist', pc.done + ' of ' + pc.total + ' done' + (sessions[date] && sessions[date].completedAt ? ' · finished' : ''))}
-    ${big('bottles', '🧴', 'Soft bottle inventory', pb.done + ' of ' + pb.total + ' counted')}
+    ${big('bottles', '🧴', 'Sauce bottle inventory', pb.done + ' of ' + pb.total + ' counted')}
     ${big('calendar', '📅', 'Calendar', 'Past prep lists & bottle counts')}`;
 }
 
@@ -849,7 +866,7 @@ function renderOpening() {
     sectionsHtml('opening', s);
 }
 
-/* ---------- Soft bottle inventory view ---------- */
+/* ---------- Sauce bottle inventory view ---------- */
 function renderBottles() {
   const date = todayBusinessDate();
   const s = getSession(date, false);
@@ -857,7 +874,7 @@ function renderBottles() {
   const pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
   $('#view-bottles').innerHTML = backBar + `
     <div class="card">
-      <h1 style="margin-top:0">🧴 Soft bottle inventory</h1>
+      <h1 style="margin-top:0">🧴 Sauce bottle inventory</h1>
       <p class="sub" style="margin:0 0 6px">${fmtBizDate(date)} — tap a bottle to enter its count.</p>
       <div><strong>${prog.done} of ${prog.total}</strong> counted</div>
       <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
@@ -868,7 +885,7 @@ function renderBottles() {
 
 /* ---------- Calendar view ------------------------------------------------
    Month grid over stored sessions (~180 days of history). Tapping a day
-   shows that day's prep list and soft-bottle counts. */
+   shows that day's prep list and sauce-bottle counts. */
 let calMonth = null; // Date pinned to the 1st of the shown month
 function renderCalendar() {
   if (!calMonth) {
@@ -920,7 +937,7 @@ function openDayDetail(date) {
     ${s.prepList.length ? '<ul style="padding-left:22px;margin:4px 0">' + s.prepList.map(pp =>
       `<li${pp.done ? ' style="color:var(--muted)"' : ''}>${pp.done ? '✓ ' : ''}${esc(pp.text)}</li>`).join('') + '</ul>'
       : '<p class="muted" style="margin:4px 0">No prep items that day.</p>'}
-    <h2>Soft bottle counts</h2>
+    <h2>Sauce bottle counts</h2>
     ${bottles.length ? '<ul style="padding-left:22px;margin:4px 0">' + bottles.map(li).join('') + '</ul>'
       : '<p class="muted" style="margin:4px 0">No bottle counts that day.</p>'}
     ${counts.length ? '<h2>Closing counts</h2><ul style="padding-left:22px;margin:4px 0">' + counts.map(li).join('') + '</ul>' : ''}
@@ -992,7 +1009,7 @@ function openSessionDetail(date) {
         <td style="padding:8px 6px;white-space:nowrap;${sev ? 'color:var(--' + sev + ')' : ''}">${e && e.value != null && e.value !== '' ? esc(e.value) + (t.unit ? ' ' + esc(t.unit) : '') : ''} ${esc(st)}</td>
         <td style="padding:8px 6px" class="muted">${e ? fmtTime(e.timestamp) : ''}</td></tr>`;
     }).join('');
-    const titles = { closing: 'Closing', opening: 'Opening', bottles: 'Soft bottles' };
+    const titles = { closing: 'Closing', opening: 'Opening', bottles: 'Sauce bottles' };
     return `<h2>${titles[list]}</h2>
       <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:15px">${rows}</table></div>`;
   };
@@ -1033,7 +1050,7 @@ function renderSettings() {
     <button class="btn block" data-act="add-task" data-list="opening" style="margin-top:10px">＋ Add opening task</button>
   </div>
 
-  <h2>Soft bottles</h2>
+  <h2>Sauce bottles</h2>
   <div class="card">
     ${byList('bottles').length ? byList('bottles').map(taskRow).join('') : '<p class="muted" style="margin:4px">None yet.</p>'}
     <button class="btn block" data-act="add-task" data-list="bottles" style="margin-top:10px">＋ Add bottle</button>
@@ -1070,7 +1087,7 @@ function openTaskEditor(taskId, list) {
     <select id="te-list">
       <option value="closing" ${(t ? t.list === 'closing' : list !== 'opening' && list !== 'bottles') ? 'selected' : ''}>Closing</option>
       <option value="opening" ${(t ? t.list === 'opening' : list === 'opening') ? 'selected' : ''}>Opening</option>
-      <option value="bottles" ${(t ? t.list === 'bottles' : list === 'bottles') ? 'selected' : ''}>Soft bottle inventory</option>
+      <option value="bottles" ${(t ? t.list === 'bottles' : list === 'bottles') ? 'selected' : ''}>Sauce bottle inventory</option>
     </select>
     <label class="fld">Section</label>
     <input type="text" id="te-section" value="${t ? esc(t.section) : ''}" list="te-sections" placeholder="e.g. Sushi bar">

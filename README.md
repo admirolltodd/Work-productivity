@@ -6,21 +6,22 @@ worker. All data lives in your phone's localStorage.
 
 **Before your first night:** open **Settings** and set the real par levels
 for Avocado and the two Rice counts (the seeded values are placeholders),
-plus pars for any soft bottles you want low-stock warnings on.
+plus pars for any sauce bottles you want low-stock warnings on.
 
 ## Features
 
 - **Home screen** — one button each for the Opening checklist, the Closing
-  checklist, the Soft bottle inventory, and the Calendar.
+  checklist, the Sauce bottle inventory, and the Calendar.
 - **Opening checklist** — sake machine, ovens, dish rack, all the morning
   prep (thaw raw shrimp comes before skewering), bar setup, lowboy cooler
   check, last night's prep list pinned right on the view, and chef setup.
 - **Closing checklist** — collapsible sections, one-tap check-off, big
   numeric entry for counts (rice is counted in bags first, then quarts),
   per-task notes, progress bar, Finish Close summary with share/copy.
-- **Soft bottle inventory** — count every squeeze bottle (eel sauce, spicy
-  mayo, tartar, bamboo sauce, kakesu — editable); counts are stored per
-  business day and visible on the calendar.
+- **Sauce bottle inventory** — count every sauce bottle (crack, sassy,
+  eagle, sashimi, M3, sweet chili ponzu, ponzu, yuzu ponzu, sriracha mayo,
+  Sasquatch sauce, bamboo, ginger poké, poké — editable); counts are stored
+  per business day and visible on the calendar.
 - **Calendar** — look back over stored days (≈6 months of history) and see
   each day's prep list and bottle counts at a tap.
 - **Business-day aware** — the "day" runs 5:00am → 4:59am, so a box checked
