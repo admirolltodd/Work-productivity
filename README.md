@@ -5,26 +5,37 @@ No accounts, no server, no build step — one `index.html` plus a service
 worker. All data lives in your phone's localStorage.
 
 **Before your first night:** open **Settings** and set the real par levels
-for Avocado and Rice (the seeded values `10` and `4` are placeholders) and
-the rice unit (containers / lbs / batches — it ships as "containers").
+for Avocado and the two Rice counts (the seeded values are placeholders),
+plus pars for any soft bottles you want low-stock warnings on.
 
 ## Features
 
-- **Tonight view** — collapsible sections, one-tap check-off, big numeric
-  entry for counts, per-task notes, progress bar, Finish Close summary with
-  share/copy.
+- **Home screen** — one button each for the Opening checklist, the Closing
+  checklist, the Soft bottle inventory, and the Calendar.
+- **Opening checklist** — sake machine, ovens, dish rack, all the morning
+  prep (thaw raw shrimp comes before skewering), bar setup, lowboy cooler
+  check, last night's prep list pinned right on the view, and chef setup.
+- **Closing checklist** — collapsible sections, one-tap check-off, big
+  numeric entry for counts (rice is counted in bags first, then quarts),
+  per-task notes, progress bar, Finish Close summary with share/copy.
+- **Soft bottle inventory** — count every squeeze bottle (eel sauce, spicy
+  mayo, tartar, bamboo sauce, kakesu — editable); counts are stored per
+  business day and visible on the calendar.
+- **Calendar** — look back over stored days (≈6 months of history) and see
+  each day's prep list and bottle counts at a tap.
 - **Business-day aware** — the "day" runs 5:00am → 4:59am, so a box checked
-  at 12:40am still lands on the right night's close.
-- **Prep list** — a standard checklist (tartar, kakasu, bamboo sauce, spicy
+  at 12:40am still lands on the right night's close, and the morning
+  opening shares the same day's record as that evening's close.
+- **Prep list** — a standard checklist (tartar, kakesu, bamboo sauce, spicy
   mayo, asparagus, ginger backups, wasabi backups — editable in Settings)
   you add with one tap, plus a free-text field for anything else; counts
   below par auto-add "Prep/order: …" items. Last night's prep list is
-  pinned to the top of the next night's view.
-- **History** — every close with completion %, duration, low-stock flags,
-  full detail, and 14-day count sparklines.
-- **Settings** — edit every task (add / rename / reorder / archive, section,
-  type, par, unit) without touching code; JSON export/import backups;
-  dark/light theme.
+  pinned to the top of the next day's opening and closing views.
+- **History** — every day with completion %, duration, low-stock flags,
+  full detail (opening, closing, and bottles), and 14-day count sparklines.
+- **Settings** — edit every task on all three lists (add / rename / reorder
+  / archive, section, type, par, unit) without touching code; JSON
+  export/import backups; dark/light theme.
 - **PWA** — installable to the home screen, works fully offline after the
   first load.
 

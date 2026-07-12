@@ -166,6 +166,27 @@ label.fld { display: block; margin: 10px 0 4px; font-size: 14px; color: var(--mu
 .prep-del { flex: none; width: 52px; min-height: 52px; background: none; border: none; color: var(--muted); font-size: 18px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* ---------- Home launcher ---------- */
+.bigbtn {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; min-height: 76px; margin-bottom: 10px;
+  text-align: left; font-size: 17px;
+}
+.bigbtn .ico { font-size: 30px; flex: none; }
+
+/* ---------- Calendar ---------- */
+.cal-wk { display: grid; grid-template-columns: repeat(7,1fr); text-align: center; color: var(--muted); font-size: 13px; margin: 10px 0 4px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+.cal-day {
+  min-height: 48px; position: relative;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); color: var(--text); font-weight: 600;
+}
+.cal-day:disabled { opacity: .35; }
+.cal-day.today { border-color: var(--accent); }
+.cal-day .dot { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.backbar { margin: 12px 0 4px; }
+
 /* ---------- History ---------- */
 .hist-row {
   width: 100%; min-height: 64px; text-align: left;
@@ -213,15 +234,17 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
 <body>
 
 <main>
-  <div id="view-tonight" class="view active"></div>
+  <div id="view-home" class="view active"></div>
+  <div id="view-closing" class="view"></div>
   <div id="view-opening" class="view"></div>
+  <div id="view-bottles" class="view"></div>
+  <div id="view-calendar" class="view"></div>
   <div id="view-history" class="view"></div>
   <div id="view-settings" class="view"></div>
 </main>
 
 <nav id="bottomnav">
-  <button data-nav="tonight" class="active"><span class="ico">🌙</span>Tonight</button>
-  <button data-nav="opening"><span class="ico">🌅</span>Opening</button>
+  <button data-nav="home" class="active"><span class="ico">🏠</span>Home</button>
   <button data-nav="history"><span class="ico">📋</span>History</button>
   <button data-nav="settings"><span class="ico">⚙️</span>Settings</button>
 </nav>
@@ -240,7 +263,7 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
    ========================================================================= */
 
 /* ---------- Storage helpers ---------- */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const LS_PREFIX = 'bc_';
 const store = {
   get(key, fallback) {
@@ -282,9 +305,12 @@ function todayBusinessDate() { return businessDate(new Date()); }
 function migrate(fromVersion) {
   let v = fromVersion;
   switch (v) {
-    case 0: // pre-first-run: nothing stored yet, seeding handles it
-      v = 1;
-      /* falls through */
+    case 0:
+      // Fresh install: nothing stored yet, so there is nothing to migrate —
+      // boot() seeds tasks and settings at the CURRENT version. Do NOT fall
+      // through: the steps below write partial data into an empty store,
+      // which would stop boot() from seeding.
+      break;
     case 1: {
       // v1 -> v2: settings gained commonPrepItems (the standard prep
       // quick-add checklist). Older data just gets the default list.
@@ -296,7 +322,31 @@ function migrate(fromVersion) {
       v = 2;
       /* falls through */
     }
-    case 2:
+    case 2: {
+      // v2 -> v3: "Kakasu" spelling fixed to "Kakesu"; rice is counted in
+      // bags first then quarts (one count task becomes two); the opening
+      // checklist and soft-bottle inventory task lists are seeded.
+      const s = store.get('settings', {});
+      if (Array.isArray(s.commonPrepItems)) {
+        s.commonPrepItems = s.commonPrepItems.map(x => x === 'Kakasu' ? 'Kakesu' : x);
+        store.set('settings', s);
+      }
+      const defs = store.get('taskDefinitions', []);
+      const rice = defs.find(t => t.label === 'Rice count' && t.type === 'count');
+      if (rice) {
+        rice.label = 'Rice count (bags)';
+        rice.unit = 'bags';
+        // Slot the quarts count right after the bags count (old spacing is 10s).
+        defs.push({ id: uid(), list: rice.list, section: rice.section, label: 'Rice count (quarts)',
+          type: 'count', unit: 'quarts', par: rice.par, sortOrder: rice.sortOrder + 1, archived: false });
+      }
+      if (!defs.some(t => t.list === 'opening')) defs.push(...buildOpeningTasks());
+      if (!defs.some(t => t.list === 'bottles')) defs.push(...buildBottleTasks());
+      store.set('taskDefinitions', defs);
+      v = 3;
+      /* falls through */
+    }
+    case 3:
       // current version — nothing to do.
       break;
     default:
@@ -310,34 +360,76 @@ function migrate(fromVersion) {
 // The standard nightly prep checklist — shown as one-tap quick-add buttons
 // on the prep list. Editable in Settings (one item per line).
 const DEFAULT_PREP_ITEMS = [
-  'Tartar', 'Kakasu', 'Bamboo sauce', 'Spicy mayo',
+  'Tartar', 'Kakesu', 'Bamboo sauce', 'Spicy mayo',
   'Asparagus', 'Ginger backups', 'Wasabi backups'
 ];
 
 function uid() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
+function buildList(list, defs) {
+  let n = 0;
+  return defs.map(([section, label, extra]) => Object.assign(
+    { id: uid(), list, section, label, type: 'check', unit: '', par: null, sortOrder: (n += 10), archived: false },
+    extra || {}));
+}
+
+function buildOpeningTasks() {
+  return buildList('opening', [
+    ['Equipment & setup', 'Turn on the sake machine'],
+    ['Equipment & setup', 'Plug in and turn on the ovens'],
+    ['Equipment & setup', 'Move the dish rack back'],
+    ['Prep', 'Make rice'],
+    ['Prep', 'Make shrimp'],
+    ['Prep', 'Make topping'],
+    ['Prep', 'Make crab salad'],
+    ['Prep', 'Pull frozens'],
+    ['Prep', 'Make chef backups'],
+    ['Prep', 'Make ginger backups'],
+    ['Prep', 'Make wasabi'],
+    ['Prep', 'Peel and plate shrimp'],
+    ['Prep', 'Thaw raw shrimp'],   // must stay before the skewer step
+    ['Prep', 'Skewer raw shrimp'],
+    ['Service setup', 'Set up the bar'],
+    ['Service setup', 'Check lowboy cooler — expiration dates, product quality, cleanliness'],
+    ['Service setup', 'Check prep list from night before'],
+    ['Service setup', 'Give out avocados'],
+    ['Service setup', 'Set up chefs for service — garlic, crab salad, cucumbers, green onions, wasabi, ginger, tartar']
+  ]);
+}
+
+// Soft (squeeze) bottle inventory — pars are optional; set them in Settings
+// if you want below-par warnings + auto prep entries for bottles too.
+function buildBottleTasks() {
+  return buildList('bottles', [
+    ['Soft bottles', 'Eel sauce', { type: 'count', unit: 'bottles' }],
+    ['Soft bottles', 'Spicy mayo', { type: 'count', unit: 'bottles' }],
+    ['Soft bottles', 'Tartar', { type: 'count', unit: 'bottles' }],
+    ['Soft bottles', 'Bamboo sauce', { type: 'count', unit: 'bottles' }],
+    ['Soft bottles', 'Kakesu', { type: 'count', unit: 'bottles' }]
+  ]);
+}
+
 function seedTasks() {
   // PAR values below are placeholders — set the real numbers in Settings.
-  let n = 0; const so = () => (n += 10);
-  const t = (section, label, extra) => Object.assign(
-    { id: uid(), list: 'closing', section, label, type: 'check', unit: '', par: null, sortOrder: so(), archived: false },
-    extra || {});
-  return [
-    t('Counts & inventory', 'Avocado count', { type: 'count', par: 10, unit: 'avocados' }),
-    t('Counts & inventory', 'Rice count',    { type: 'count', par: 4, unit: 'containers' }), // unit editable in Settings
-    t('Counts & inventory', 'Nightly inventory count'), // detailed per-item inventory stays on paper for v1
-    t('Sauce station', 'Sanitize all sauce bottles'),
-    t('Sauce station', 'Wipe and refill eel sauce bottles'),
-    t('Sushi bar', 'Wipe down sushi bar walls'),
-    t('Sushi bar', 'Sushi bar cleanup'),
-    t('Sushi bar', 'Clean kakesu shelf'),
-    t('Sushi bar', 'Clean hangiri before storage'),
-    t('Floors & hallway', 'Sweep and scrub floor'),
-    t('Floors & hallway', 'Scrub and set up hallway'),
-    t('Trash & tools', 'Spray out trash cans'),
-    t('Trash & tools', 'Clean brooms and dust pans'),
-    t('Prep', 'Generate next-day prep list')
-  ];
+  // Rice is counted in bags first, then in quarts — two separate counts.
+  const closing = buildList('closing', [
+    ['Counts & inventory', 'Avocado count', { type: 'count', par: 10, unit: 'avocados' }],
+    ['Counts & inventory', 'Rice count (bags)',   { type: 'count', par: 4, unit: 'bags' }],
+    ['Counts & inventory', 'Rice count (quarts)', { type: 'count', par: 4, unit: 'quarts' }],
+    ['Counts & inventory', 'Nightly inventory count'], // detailed per-item inventory stays on paper for v1
+    ['Sauce station', 'Sanitize all sauce bottles'],
+    ['Sauce station', 'Wipe and refill eel sauce bottles'],
+    ['Sushi bar', 'Wipe down sushi bar walls'],
+    ['Sushi bar', 'Sushi bar cleanup'],
+    ['Sushi bar', 'Clean kakesu shelf'],
+    ['Sushi bar', 'Clean hangiri before storage'],
+    ['Floors & hallway', 'Sweep and scrub floor'],
+    ['Floors & hallway', 'Scrub and set up hallway'],
+    ['Trash & tools', 'Spray out trash cans'],
+    ['Trash & tools', 'Clean brooms and dust pans'],
+    ['Prep', 'Generate next-day prep list']
+  ]);
+  return closing.concat(buildOpeningTasks(), buildBottleTasks());
 }
 
 /* ---------- State ---------- */
@@ -450,7 +542,10 @@ function importData(obj) {
   saveSettings(); saveTasks(); saveSessions();
   store.set('schemaVersion', obj.schemaVersion);
   migrate(obj.schemaVersion); // bring older backups forward
-  settings = store.get('settings', settings); // pick up anything migration added
+  // Reload from store so anything the migration changed lands in memory too.
+  settings = store.get('settings', settings);
+  tasks = store.get('taskDefinitions', tasks);
+  sessions = store.get('sessions', sessions);
   document.documentElement.dataset.theme = settings.theme;
 }
 
@@ -484,7 +579,7 @@ function lowFlags(session) {
 
 /* ---------- UI plumbing ---------- */
 const $ = sel => document.querySelector(sel);
-let currentView = 'tonight';
+let currentView = 'home';
 let collapsedSections = {}; // in-memory only; everything reopens tomorrow
 let expandedTask = null;    // task id whose note/status panel is open
 
@@ -492,7 +587,10 @@ function show(view) {
   currentView = view;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   $('#view-' + view).classList.add('active');
-  document.querySelectorAll('#bottomnav button').forEach(b => b.classList.toggle('active', b.dataset.nav === view));
+  // Checklists, bottles and calendar all live "under" Home in the nav.
+  const navKey = ['closing', 'opening', 'bottles', 'calendar'].includes(view) ? 'home' : view;
+  document.querySelectorAll('#bottomnav button').forEach(b => b.classList.toggle('active', b.dataset.nav === navKey));
+  window.scrollTo(0, 0);
   render();
 }
 document.querySelectorAll('#bottomnav button').forEach(b => b.addEventListener('click', () => show(b.dataset.nav)));
@@ -513,52 +611,84 @@ function openModal(html) {
 function closeModal() { $('#modal-root').classList.remove('open'); $('#modal-card').innerHTML = ''; }
 $('#modal-scrim').addEventListener('click', closeModal);
 
-/* ---------- Tonight view ---------- */
-function renderTonight() {
-  const date = todayBusinessDate();
-  const s = getSession(date, false);
-  const prog = progressOf(s || { entries: {} }, 'closing');
-  const pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
-  const prev = previousPrepSession(date);
-  let html = '';
+/* ---------- Shared checklist pieces ---------- */
+const backBar = '<div class="backbar"><button class="btn small" data-act="go-home">‹ Home</button></div>';
 
-  html += backupBannerHtml();
-
-  html += `<div class="card">
-    <h1>${fmtBizDate(date)} close</h1>
-    <p class="sub">Closer: <strong>${esc((s && s.closer) || settings.closer)}</strong>
-      <button class="btn small" data-act="edit-closer" style="margin-left:8px">change</button></p>
-    <div><strong>${prog.done} of ${prog.total}</strong> done${s && s.completedAt ? ' · <span style="color:var(--accent)">finished ' + fmtTime(s.completedAt) + '</span>' : ''}</div>
-    <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
-  </div>`;
-
-  if (prev) {
-    html += `<div class="card" style="border-color:var(--accent-dim)">
-      <h2 style="margin-top:0">Yesterday's prep list <span class="muted" style="text-transform:none">(${fmtBizDate(prev.date)})</span></h2>
-      ${prev.prepList.map((p, i) => `
-        <div class="prep-item ${p.done ? 'done' : ''}">
-          <button class="prep-main" data-act="toggle-prev-prep" data-date="${prev.date}" data-i="${i}">
-            <span class="task-tick">✓</span><span class="prep-text grow">${esc(p.text)}</span>
-            ${p.source === 'auto' ? '<span class="prep-src">auto</span>' : ''}
-          </button>
-        </div>`).join('')}
-    </div>`;
-  }
-
-  // Task sections (order of first appearance in sortOrder)
-  const ts = activeTasks('closing');
+// Task sections for one list (order of first appearance in sortOrder)
+function sectionsHtml(list, s) {
+  const ts = activeTasks(list);
   const sections = [...new Set(ts.map(t => t.section))];
+  let html = '';
   for (const sec of sections) {
     const secTasks = ts.filter(t => t.section === sec);
     const secDone = secTasks.filter(t => { const e = s && s.entries[t.id]; return e && (e.status === 'done' || e.status === 'na'); }).length;
-    const collapsed = !!collapsedSections[sec];
-    html += `<button class="section-h" data-act="toggle-section" data-sec="${esc(sec)}">
+    const key = list + '|' + sec;
+    const collapsed = !!collapsedSections[key];
+    html += `<button class="section-h" data-act="toggle-section" data-sec="${esc(key)}">
       <span>${esc(sec)}</span>
       <span><span class="count">${secDone}/${secTasks.length}</span> <span class="chev">${collapsed ? '▸' : '▾'}</span></span>
     </button>`;
     if (collapsed) continue;
     for (const t of secTasks) html += taskRowHtml(t, s);
   }
+  return html;
+}
+
+function prevPrepCardHtml(date) {
+  const prev = previousPrepSession(date);
+  if (!prev) return '';
+  return `<div class="card" style="border-color:var(--accent-dim)">
+    <h2 style="margin-top:0">Yesterday's prep list <span class="muted" style="text-transform:none">(${fmtBizDate(prev.date)})</span></h2>
+    ${prev.prepList.map((p, i) => `
+      <div class="prep-item ${p.done ? 'done' : ''}">
+        <button class="prep-main" data-act="toggle-prev-prep" data-date="${prev.date}" data-i="${i}">
+          <span class="task-tick">✓</span><span class="prep-text grow">${esc(p.text)}</span>
+          ${p.source === 'auto' ? '<span class="prep-src">auto</span>' : ''}
+        </button>
+      </div>`).join('')}
+  </div>`;
+}
+
+/* ---------- Home view ---------- */
+function renderHome() {
+  const date = todayBusinessDate();
+  const s = getSession(date, false) || { entries: {} };
+  const po = progressOf(s, 'opening');
+  const pc = progressOf(s, 'closing');
+  const pb = progressOf(s, 'bottles');
+  const big = (view, ico, title, sub) => `<button class="bigbtn btn" data-act="go" data-view="${view}">
+    <span class="ico">${ico}</span>
+    <span class="grow"><strong>${title}</strong><br><span class="muted" style="font-weight:400;font-size:14px">${sub}</span></span>
+    <span class="chev muted">▸</span></button>`;
+  $('#view-home').innerHTML = backupBannerHtml() + `
+    <div class="card">
+      <h1 style="margin-top:0">Bamboo 🎋</h1>
+      <p class="sub" style="margin:0">${fmtBizDate(date)} · Closer: <strong>${esc((sessions[date] && sessions[date].closer) || settings.closer)}</strong></p>
+    </div>
+    ${big('opening', '🌅', 'Opening checklist', po.done + ' of ' + po.total + ' done')}
+    ${big('closing', '🌙', 'Closing checklist', pc.done + ' of ' + pc.total + ' done' + (sessions[date] && sessions[date].completedAt ? ' · finished' : ''))}
+    ${big('bottles', '🧴', 'Soft bottle inventory', pb.done + ' of ' + pb.total + ' counted')}
+    ${big('calendar', '📅', 'Calendar', 'Past prep lists & bottle counts')}`;
+}
+
+/* ---------- Closing view ---------- */
+function renderClosing() {
+  const date = todayBusinessDate();
+  const s = getSession(date, false);
+  const prog = progressOf(s || { entries: {} }, 'closing');
+  const pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
+  let html = backBar;
+
+  html += `<div class="card">
+    <h1 style="margin-top:0">${fmtBizDate(date)} close</h1>
+    <p class="sub">Closer: <strong>${esc((s && s.closer) || settings.closer)}</strong>
+      <button class="btn small" data-act="edit-closer" style="margin-left:8px">change</button></p>
+    <div><strong>${prog.done} of ${prog.total}</strong> done${s && s.completedAt ? ' · <span style="color:var(--accent)">finished ' + fmtTime(s.completedAt) + '</span>' : ''}</div>
+    <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+  </div>`;
+
+  html += prevPrepCardHtml(date);
+  html += sectionsHtml('closing', s);
 
   // Tonight's prep list
   const prep = (s && s.prepList) || [];
@@ -587,7 +717,7 @@ function renderTonight() {
   html += `<button class="btn primary block" style="min-height:56px;font-size:18px;margin-top:8px" data-act="finish">
     ${s && s.completedAt ? 'View close summary' : 'Finish Close'}</button>`;
 
-  $('#view-tonight').innerHTML = html;
+  $('#view-closing').innerHTML = html;
 }
 
 function taskRowHtml(t, s) {
@@ -703,16 +833,101 @@ async function shareSummary() {
   }
 }
 
-/* ---------- Opening view (phase-2 stub) ---------- */
+/* ---------- Opening view ---------- */
 function renderOpening() {
-  const n = activeTasks('opening').length;
-  $('#view-opening').innerHTML = `<div class="card" style="margin-top:12px;text-align:center;padding:32px 16px">
-    <div style="font-size:40px">🌅</div>
-    <h1>Opening checklist</h1>
-    <p class="sub">Coming in phase 2. The data model already supports it —
-    ${n ? n + ' opening task' + (n > 1 ? 's are' : ' is') + ' defined in Settings and will show up here when this view ships.'
-        : 'you can even pre-build the task list in Settings.'}</p>
-  </div>`;
+  const date = todayBusinessDate();
+  const s = getSession(date, false);
+  const prog = progressOf(s || { entries: {} }, 'opening');
+  const pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
+  $('#view-opening').innerHTML = backBar + `
+    <div class="card">
+      <h1 style="margin-top:0">🌅 ${fmtBizDate(date)} opening</h1>
+      <div><strong>${prog.done} of ${prog.total}</strong> done</div>
+      <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+    </div>` +
+    prevPrepCardHtml(date) + // "Check prep list from night before" — here it is
+    sectionsHtml('opening', s);
+}
+
+/* ---------- Soft bottle inventory view ---------- */
+function renderBottles() {
+  const date = todayBusinessDate();
+  const s = getSession(date, false);
+  const prog = progressOf(s || { entries: {} }, 'bottles');
+  const pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
+  $('#view-bottles').innerHTML = backBar + `
+    <div class="card">
+      <h1 style="margin-top:0">🧴 Soft bottle inventory</h1>
+      <p class="sub" style="margin:0 0 6px">${fmtBizDate(date)} — tap a bottle to enter its count.</p>
+      <div><strong>${prog.done} of ${prog.total}</strong> counted</div>
+      <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+    </div>` +
+    sectionsHtml('bottles', s) +
+    `<p class="muted" style="font-size:14px">Add or edit bottles in Settings. Give a bottle a par to get low-stock warnings and automatic prep-list entries.</p>`;
+}
+
+/* ---------- Calendar view ------------------------------------------------
+   Month grid over stored sessions (~180 days of history). Tapping a day
+   shows that day's prep list and soft-bottle counts. */
+let calMonth = null; // Date pinned to the 1st of the shown month
+function renderCalendar() {
+  if (!calMonth) {
+    const [y, m] = todayBusinessDate().split('-').map(Number);
+    calMonth = new Date(y, m - 1, 1);
+  }
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  const firstDow = new Date(y, m, 1).getDay(); // 0 = Sunday
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const today = todayBusinessDate();
+  const p = n => String(n).padStart(2, '0');
+  let cells = '';
+  for (let i = 0; i < firstDow; i++) cells += '<span></span>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = y + '-' + p(m + 1) + '-' + p(d);
+    const has = !!sessions[ds];
+    cells += `<button class="cal-day ${ds === today ? 'today' : ''}" data-act="cal-day" data-date="${ds}" ${has ? '' : 'disabled'}>
+      ${d}${has ? '<span class="dot"></span>' : ''}</button>`;
+  }
+  $('#view-calendar').innerHTML = backBar + `
+    <div class="card">
+      <div class="rowflex" style="justify-content:space-between">
+        <button class="btn small" data-act="cal-prev">‹</button>
+        <strong style="font-size:17px">${calMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong>
+        <button class="btn small" data-act="cal-next">›</button>
+      </div>
+      <div class="cal-wk"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+      <div class="cal-grid">${cells}</div>
+      <p class="muted" style="font-size:14px;margin:10px 0 0">Dotted days have a record — tap one to see that day's prep list and bottle counts.</p>
+    </div>`;
+}
+
+function openDayDetail(date) {
+  const s = sessions[date];
+  if (!s) return;
+  const countRows = list => tasks
+    .filter(t => t.list === list && t.type === 'count')
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map(t => { const e = s.entries[t.id]; return e && e.value != null && e.value !== '' ? { t, e } : null; })
+    .filter(Boolean);
+  const bottles = countRows('bottles');
+  const counts = countRows('closing');
+  const li = ({ t, e }) => {
+    const sev = parSeverity(t, e.value);
+    return `<li>${esc(t.label)}: <strong${sev ? ' class="tag-' + sev + '"' : ''}>${esc(e.value)}${t.unit ? ' ' + esc(t.unit) : ''}</strong>${t.par != null ? ' <span class="muted">(par ' + t.par + ')</span>' : ''}</li>`;
+  };
+  openModal(`<h3>${fmtBizDate(date)} — ${esc(s.closer)}</h3>
+    <h2>Prep list</h2>
+    ${s.prepList.length ? '<ul style="padding-left:22px;margin:4px 0">' + s.prepList.map(pp =>
+      `<li${pp.done ? ' style="color:var(--muted)"' : ''}>${pp.done ? '✓ ' : ''}${esc(pp.text)}</li>`).join('') + '</ul>'
+      : '<p class="muted" style="margin:4px 0">No prep items that day.</p>'}
+    <h2>Soft bottle counts</h2>
+    ${bottles.length ? '<ul style="padding-left:22px;margin:4px 0">' + bottles.map(li).join('') + '</ul>'
+      : '<p class="muted" style="margin:4px 0">No bottle counts that day.</p>'}
+    ${counts.length ? '<h2>Closing counts</h2><ul style="padding-left:22px;margin:4px 0">' + counts.map(li).join('') + '</ul>' : ''}
+    <div class="rowflex" style="margin-top:14px">
+      <button class="btn grow" data-act="open-session" data-date="${date}">Full detail</button>
+      <button class="btn primary grow" data-act="close-modal">Close</button>
+    </div>`);
 }
 
 /* ---------- History view ---------- */
@@ -762,20 +977,28 @@ function sparklinesHtml() {
 function openSessionDetail(date) {
   const s = sessions[date];
   if (!s) return;
-  const ts = tasks.filter(t => t.list === 'closing').sort((a, b) => a.sortOrder - b.sortOrder);
-  const rows = ts.map(t => {
-    const e = s.entries[t.id];
-    if (!e && t.archived) return '';
-    const st = e ? e.status : '—';
-    const sev = e && t.type === 'count' ? parSeverity(t, e.value) : null;
-    return `<tr style="border-bottom:1px solid var(--line)">
-      <td style="padding:8px 6px">${esc(t.label)}${e && e.note ? '<br><span class="muted" style="font-size:13px">📝 ' + esc(e.note) + '</span>' : ''}</td>
-      <td style="padding:8px 6px;white-space:nowrap;${sev ? 'color:var(--' + sev + ')' : ''}">${e && e.value != null && e.value !== '' ? esc(e.value) + (t.unit ? ' ' + esc(t.unit) : '') : ''} ${esc(st)}</td>
-      <td style="padding:8px 6px" class="muted">${e ? fmtTime(e.timestamp) : ''}</td></tr>`;
-  }).join('');
+  const tableFor = list => {
+    const ts = tasks.filter(t => t.list === list).sort((a, b) => a.sortOrder - b.sortOrder);
+    // The close always shows in full; opening/bottles only if touched that day.
+    if (list !== 'closing' && !ts.some(t => s.entries[t.id])) return '';
+    const rows = ts.map(t => {
+      const e = s.entries[t.id];
+      if (!e && t.archived) return '';
+      if (!e && list !== 'closing') return '';
+      const st = e ? e.status : '—';
+      const sev = e && t.type === 'count' ? parSeverity(t, e.value) : null;
+      return `<tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:8px 6px">${esc(t.label)}${e && e.note ? '<br><span class="muted" style="font-size:13px">📝 ' + esc(e.note) + '</span>' : ''}</td>
+        <td style="padding:8px 6px;white-space:nowrap;${sev ? 'color:var(--' + sev + ')' : ''}">${e && e.value != null && e.value !== '' ? esc(e.value) + (t.unit ? ' ' + esc(t.unit) : '') : ''} ${esc(st)}</td>
+        <td style="padding:8px 6px" class="muted">${e ? fmtTime(e.timestamp) : ''}</td></tr>`;
+    }).join('');
+    const titles = { closing: 'Closing', opening: 'Opening', bottles: 'Soft bottles' };
+    return `<h2>${titles[list]}</h2>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:15px">${rows}</table></div>`;
+  };
   openModal(`<h3>${fmtBizDate(date)} — ${esc(s.closer)}</h3>
     <p class="muted" style="margin:0 0 8px">Started ${fmtTime(s.startedAt) || '—'} · finished ${fmtTime(s.completedAt) || '—'} · ${fmtDuration(s.startedAt, s.completedAt)}</p>
-    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:15px">${rows}</table></div>
+    ${tableFor('opening')}${tableFor('closing')}${tableFor('bottles')}
     ${s.prepList.length ? '<h2>Prep list</h2><ul style="padding-left:22px">' + s.prepList.map(p =>
       `<li${p.done ? ' style="text-decoration:line-through;color:var(--muted)"' : ''}>${esc(p.text)}</li>`).join('') + '</ul>' : ''}
     <button class="btn primary block" data-act="close-modal" style="margin-top:12px">Close</button>`);
@@ -804,10 +1027,16 @@ function renderSettings() {
     <button class="btn block" data-act="add-task" data-list="closing" style="margin-top:10px">＋ Add closing task</button>
   </div>
 
-  <h2>Opening tasks (phase 2)</h2>
+  <h2>Opening tasks</h2>
   <div class="card">
-    ${byList('opening').length ? byList('opening').map(taskRow).join('') : '<p class="muted" style="margin:4px">None yet — the checklist UI ships in phase 2, but you can define tasks now.</p>'}
+    ${byList('opening').length ? byList('opening').map(taskRow).join('') : '<p class="muted" style="margin:4px">None yet.</p>'}
     <button class="btn block" data-act="add-task" data-list="opening" style="margin-top:10px">＋ Add opening task</button>
+  </div>
+
+  <h2>Soft bottles</h2>
+  <div class="card">
+    ${byList('bottles').length ? byList('bottles').map(taskRow).join('') : '<p class="muted" style="margin:4px">None yet.</p>'}
+    <button class="btn block" data-act="add-task" data-list="bottles" style="margin-top:10px">＋ Add bottle</button>
   </div>
 
   <h2>Standard prep items</h2>
@@ -839,16 +1068,17 @@ function openTaskEditor(taskId, list) {
     <input type="text" id="te-label" value="${t ? esc(t.label) : ''}" placeholder="e.g. Wipe down hood vents">
     <label class="fld">List</label>
     <select id="te-list">
-      <option value="closing" ${(!t || t.list === 'closing') ? 'selected' : ''}>Closing</option>
+      <option value="closing" ${(t ? t.list === 'closing' : list !== 'opening' && list !== 'bottles') ? 'selected' : ''}>Closing</option>
       <option value="opening" ${(t ? t.list === 'opening' : list === 'opening') ? 'selected' : ''}>Opening</option>
+      <option value="bottles" ${(t ? t.list === 'bottles' : list === 'bottles') ? 'selected' : ''}>Soft bottle inventory</option>
     </select>
     <label class="fld">Section</label>
     <input type="text" id="te-section" value="${t ? esc(t.section) : ''}" list="te-sections" placeholder="e.g. Sushi bar">
     <datalist id="te-sections">${sections.map(s => `<option value="${esc(s)}">`).join('')}</datalist>
     <label class="fld">Type</label>
     <select id="te-type">
-      <option value="check" ${(!t || t.type === 'check') ? 'selected' : ''}>Check (tap to complete)</option>
-      <option value="count" ${(t && t.type === 'count') ? 'selected' : ''}>Count (numeric, with par)</option>
+      <option value="check" ${(t ? t.type === 'check' : list !== 'bottles') ? 'selected' : ''}>Check (tap to complete)</option>
+      <option value="count" ${(t ? t.type === 'count' : list === 'bottles') ? 'selected' : ''}>Count (numeric, with par)</option>
     </select>
     <div class="rowflex">
       <div class="grow"><label class="fld">Par (counts only)</label>
@@ -931,6 +1161,13 @@ document.body.addEventListener('click', ev => {
   const today = todayBusinessDate();
 
   switch (act) {
+    case 'go': show(el.dataset.view); break;
+    case 'go-home': show('home'); break;
+
+    case 'cal-prev': calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); render(); break;
+    case 'cal-next': calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); render(); break;
+    case 'cal-day': openDayDetail(el.dataset.date); break;
+
     case 'toggle-section':
       collapsedSections[el.dataset.sec] = !collapsedSections[el.dataset.sec];
       render(); break;
@@ -1016,7 +1253,7 @@ document.body.addEventListener('click', ev => {
     }
     case 'share-summary': shareSummary(); break;
 
-    case 'open-session': openSessionDetail(el.dataset.date); break;
+    case 'open-session': closeModal(); openSessionDetail(el.dataset.date); break;
 
     case 'toggle-theme':
       settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
@@ -1102,7 +1339,8 @@ document.body.addEventListener('change', ev => {
 
 /* ---------- Render dispatch & rollover ---------- */
 function render() {
-  ({ tonight: renderTonight, opening: renderOpening, history: renderHistory, settings: renderSettings })[currentView]();
+  ({ home: renderHome, closing: renderClosing, opening: renderOpening, bottles: renderBottles,
+     calendar: renderCalendar, history: renderHistory, settings: renderSettings })[currentView]();
 }
 
 // If the app sits open across the 5am boundary, re-render onto the new
