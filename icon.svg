@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0e1512"/>
+  <!-- bamboo stalk -->
+  <rect x="216" y="72" width="80" height="368" rx="24" fill="#4cd97b"/>
+  <rect x="208" y="176" width="96" height="16" rx="8" fill="#0e1512"/>
+  <rect x="208" y="300" width="96" height="16" rx="8" fill="#0e1512"/>
+  <!-- leaf -->
+  <path d="M296 140 C 360 96 416 100 440 108 C 420 160 368 192 304 180 Z" fill="#2a7a4a"/>
+  <!-- checkmark -->
+  <path d="M120 336 L 176 392 L 264 264" fill="none" stroke="#eaf4ee" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- maskable: full-bleed background, art kept inside the 80% safe zone -->
+  <rect width="512" height="512" fill="#0e1512"/>
+  <rect x="226" y="112" width="60" height="288" rx="20" fill="#4cd97b"/>
+  <rect x="220" y="196" width="72" height="12" rx="6" fill="#0e1512"/>
+  <rect x="220" y="296" width="72" height="12" rx="6" fill="#0e1512"/>
+  <path d="M286 160 C 336 126 380 130 398 136 C 382 176 342 200 292 190 Z" fill="#2a7a4a"/>
+  <path d="M150 320 L 194 364 L 262 264" fill="none" stroke="#eaf4ee" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

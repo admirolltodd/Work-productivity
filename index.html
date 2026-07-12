@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1512">
+<title>Bamboo Close</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<style>
+/* ---------- Theme ---------- */
+:root, [data-theme="dark"] {
+  --bg: #0e1512;
+  --bg2: #16201b;
+  --card: #1b2822;
+  --card2: #223129;
+  --line: #2e4237;
+  --text: #eaf4ee;
+  --muted: #9db8aa;
+  --accent: #4cd97b;
+  --accent-dim: #2a7a4a;
+  --amber: #ffc14d;
+  --red: #ff6b6b;
+  --nav-h: 64px;
+}
+[data-theme="light"] {
+  --bg: #f3f6f4;
+  --bg2: #e8eeea;
+  --card: #ffffff;
+  --card2: #eef4f0;
+  --line: #cdd9d2;
+  --text: #14201a;
+  --muted: #55705f;
+  --accent: #158a44;
+  --accent-dim: #9fd4b4;
+  --amber: #a86f00;
+  --red: #c72e2e;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.4;
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+/* ---------- Layout ---------- */
+main { max-width: 640px; margin: 0 auto; padding: 12px 12px 16px; }
+.view { display: none; }
+.view.active { display: block; }
+h1 { font-size: 22px; margin: 8px 0 2px; }
+h2 { font-size: 16px; margin: 20px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.sub { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
+
+/* ---------- Bottom nav ---------- */
+nav#bottomnav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: flex;
+  background: var(--bg2);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+nav#bottomnav button {
+  flex: 1; min-height: var(--nav-h);
+  background: none; border: none; color: var(--muted);
+  font-size: 14px; font-weight: 600;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+}
+nav#bottomnav button .ico { font-size: 20px; line-height: 1; }
+nav#bottomnav button.active { color: var(--accent); }
+
+/* ---------- Cards / rows ---------- */
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 14px; padding: 12px; margin-bottom: 12px;
+}
+.progress-wrap { background: var(--bg2); border-radius: 8px; height: 12px; overflow: hidden; margin-top: 8px; }
+.progress-bar { height: 100%; background: var(--accent); width: 0%; transition: width .25s; border-radius: 8px; }
+
+.section-h {
+  width: 100%; min-height: 52px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--bg2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px 14px; margin: 14px 0 6px;
+  font-weight: 700; font-size: 16px; text-align: left;
+}
+.section-h .count { color: var(--muted); font-weight: 600; font-size: 15px; }
+.section-h .chev { color: var(--muted); font-size: 14px; }
+
+.task-row {
+  display: flex; align-items: stretch;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; margin: 6px 0; overflow: hidden;
+}
+.task-main {
+  flex: 1; min-height: 56px;
+  display: flex; align-items: center; gap: 12px;
+  background: none; border: none; text-align: left; padding: 8px 4px 8px 12px;
+}
+.task-tick {
+  width: 30px; height: 30px; flex: none; border-radius: 50%;
+  border: 2px solid var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; color: transparent;
+}
+.task-row.st-done .task-tick { background: var(--accent); border-color: var(--accent); color: #06130a; }
+.task-row.st-skipped .task-tick { border-color: var(--amber); color: var(--amber); }
+.task-row.st-na .task-tick { border-color: var(--muted); color: var(--muted); }
+.task-row.st-done .task-label { color: var(--muted); }
+.task-row.st-done .lbl { text-decoration: line-through; }
+.task-label { flex: 1; }
+.task-meta { font-size: 13px; color: var(--muted); display: block; }
+.task-val { font-weight: 700; font-size: 18px; padding-right: 4px; white-space: nowrap; }
+.task-row.flag-amber { border-color: var(--amber); }
+.task-row.flag-amber .task-val { color: var(--amber); }
+.task-row.flag-red { border-color: var(--red); }
+.task-row.flag-red .task-val { color: var(--red); }
+.task-more {
+  flex: none; width: 56px; min-height: 56px;
+  background: none; border: none; border-left: 1px solid var(--line);
+  color: var(--muted); font-size: 20px;
+}
+.task-detail { padding: 10px 12px 12px; border-top: 1px solid var(--line); background: var(--card2); }
+.task-detail .statusbtns { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.note-preview { font-size: 14px; color: var(--amber); padding: 0 12px 10px 54px; margin-top: -4px; }
+
+/* ---------- Buttons / inputs ---------- */
+.btn {
+  min-height: 48px; padding: 10px 16px;
+  border-radius: 12px; border: 1px solid var(--line);
+  background: var(--card2); color: var(--text); font-weight: 600;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #06130a; }
+.btn.danger { background: none; border-color: var(--red); color: var(--red); }
+.btn.small { min-height: 48px; padding: 6px 12px; font-size: 15px; }
+.btn.on { background: var(--accent); border-color: var(--accent); color: #06130a; }
+.btn.block { display: block; width: 100%; }
+input[type=text], input[type=number], select, textarea {
+  width: 100%; min-height: 48px; padding: 10px 12px;
+  border-radius: 12px; border: 1px solid var(--line);
+  background: var(--bg2); color: var(--text);
+}
+textarea { min-height: 72px; resize: vertical; }
+label.fld { display: block; margin: 10px 0 4px; font-size: 14px; color: var(--muted); font-weight: 600; }
+.rowflex { display: flex; gap: 8px; align-items: center; }
+.rowflex > * { min-width: 0; }
+.grow { flex: 1; }
+
+/* ---------- Prep list ---------- */
+.prep-item { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
+.prep-item:last-child { border-bottom: none; }
+.prep-main {
+  flex: 1; min-height: 52px; display: flex; align-items: center; gap: 10px;
+  background: none; border: none; text-align: left; padding: 6px 4px;
+}
+.prep-main .task-tick { width: 26px; height: 26px; font-size: 15px; }
+.prep-item.done .task-tick { background: var(--accent); border-color: var(--accent); color: #06130a; }
+.prep-item.done .prep-text { text-decoration: line-through; color: var(--muted); }
+.prep-src { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+.prep-del { flex: none; width: 52px; min-height: 52px; background: none; border: none; color: var(--muted); font-size: 18px; }
+
+/* ---------- History ---------- */
+.hist-row {
+  width: 100%; min-height: 64px; text-align: left;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 14px; margin: 8px 0;
+}
+.hist-row .flags { color: var(--amber); font-size: 13px; }
+.spark { display: block; }
+.spark polyline { fill: none; stroke: var(--accent); stroke-width: 2; }
+.spark .parline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* ---------- Modal ---------- */
+#modal-root { position: fixed; inset: 0; z-index: 40; display: none; }
+#modal-root.open { display: flex; align-items: flex-end; justify-content: center; }
+#modal-scrim { position: absolute; inset: 0; background: rgba(0,0,0,.6); }
+#modal-card {
+  position: relative; width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 18px 18px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+#modal-card h3 { margin: 0 0 8px; font-size: 19px; }
+.bignum { font-size: 34px; text-align: center; font-weight: 800; }
+
+/* ---------- Banner & toast ---------- */
+.banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card2); border: 1px solid var(--amber);
+  border-radius: 12px; padding: 8px 12px; margin-bottom: 12px; font-size: 15px;
+}
+#toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--nav-h) + 16px); z-index: 50;
+  background: var(--card2); border: 1px solid var(--line); color: var(--text);
+  padding: 10px 18px; border-radius: 12px; font-weight: 600;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+#toast.show { opacity: 1; }
+.muted { color: var(--muted); }
+.tag-low { color: var(--amber); font-weight: 700; }
+.tag-red { color: var(--red); font-weight: 700; }
+hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<main>
+  <div id="view-tonight" class="view active"></div>
+  <div id="view-opening" class="view"></div>
+  <div id="view-history" class="view"></div>
+  <div id="view-settings" class="view"></div>
+</main>
+
+<nav id="bottomnav">
+  <button data-nav="tonight" class="active"><span class="ico">🌙</span>Tonight</button>
+  <button data-nav="opening"><span class="ico">🌅</span>Opening</button>
+  <button data-nav="history"><span class="ico">📋</span>History</button>
+  <button data-nav="settings"><span class="ico">⚙️</span>Settings</button>
+</nav>
+
+<div id="modal-root">
+  <div id="modal-scrim"></div>
+  <div id="modal-card"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =========================================================================
+   Bamboo Close — nightly closing checklist PWA.
+   Single-user, offline-first, all data in localStorage. No server.
+   ========================================================================= */
+
+/* ---------- Storage helpers ---------- */
+const SCHEMA_VERSION = 1;
+const LS_PREFIX = 'bc_';
+const store = {
+  get(key, fallback) {
+    try {
+      const raw = localStorage.getItem(LS_PREFIX + key);
+      return raw === null ? fallback : JSON.parse(raw);
+    } catch (e) { return fallback; }
+  },
+  set(key, val) { localStorage.setItem(LS_PREFIX + key, JSON.stringify(val)); },
+  remove(key) { localStorage.removeItem(LS_PREFIX + key); }
+};
+
+/* ---------- Business-day math (critical) ------------------------------
+   A business day runs 5:00am -> 4:59:59am local time. Anything that
+   happens between midnight and 4:59am belongs to the PREVIOUS calendar
+   date's close (a box checked at 12:40am on July 13 is part of the
+   July 12 close).
+
+   Implementation: shift the timestamp back 5 hours, then read the LOCAL
+   calendar date of the shifted moment. 12:40am Jul 13 - 5h = 7:40pm
+   Jul 12 -> "2026-07-12". 5:00am Jul 13 - 5h = 12:00am Jul 13 ->
+   "2026-07-13". DST caveat: on the two switch nights a year the boundary
+   drifts by an hour (4am or 6am instead of 5am) — harmless for this use,
+   since nobody is closing the restaurant at exactly 5am.
+------------------------------------------------------------------------ */
+function businessDate(d) {
+  const shifted = new Date(d.getTime() - 5 * 3600 * 1000);
+  const p = n => String(n).padStart(2, '0');
+  return shifted.getFullYear() + '-' + p(shifted.getMonth() + 1) + '-' + p(shifted.getDate());
+}
+function todayBusinessDate() { return businessDate(new Date()); }
+
+/* ---------- Schema migrations ------------------------------------------
+   All stored data is versioned via bc_schemaVersion. When the schema
+   changes, bump SCHEMA_VERSION and add a step below. migrate() runs at
+   boot AND on import, walking one version at a time so any old backup
+   can be brought forward. Each case falls through to the next.
+------------------------------------------------------------------------ */
+function migrate(fromVersion) {
+  let v = fromVersion;
+  switch (v) {
+    case 0: // pre-first-run: nothing stored yet, seeding handles it
+      v = 1;
+      /* falls through */
+    case 1:
+      // current version — nothing to do.
+      // Future example:
+      // case 1:
+      //   const tasks = store.get('taskDefinitions', []);
+      //   tasks.forEach(t => { t.newField = t.newField ?? 'default'; });
+      //   store.set('taskDefinitions', tasks);
+      //   v = 2;
+      //   /* falls through */
+      break;
+    default:
+      // Data written by a NEWER app version. Don't touch it.
+      throw new Error('Data is schema v' + v + ', app only knows v' + SCHEMA_VERSION);
+  }
+  store.set('schemaVersion', SCHEMA_VERSION);
+}
+
+/* ---------- Seed data ---------- */
+function uid() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function seedTasks() {
+  // PAR values below are placeholders — set the real numbers in Settings.
+  let n = 0; const so = () => (n += 10);
+  const t = (section, label, extra) => Object.assign(
+    { id: uid(), list: 'closing', section, label, type: 'check', unit: '', par: null, sortOrder: so(), archived: false },
+    extra || {});
+  return [
+    t('Counts & inventory', 'Avocado count', { type: 'count', par: 10, unit: 'avocados' }),
+    t('Counts & inventory', 'Rice count',    { type: 'count', par: 4, unit: 'containers' }), // unit editable in Settings
+    t('Counts & inventory', 'Nightly inventory count'), // detailed per-item inventory stays on paper for v1
+    t('Sauce station', 'Sanitize all sauce bottles'),
+    t('Sauce station', 'Wipe and refill eel sauce bottles'),
+    t('Sushi bar', 'Wipe down sushi bar walls'),
+    t('Sushi bar', 'Sushi bar cleanup'),
+    t('Sushi bar', 'Clean kakesu shelf'),
+    t('Sushi bar', 'Clean hangiri before storage'),
+    t('Floors & hallway', 'Sweep and scrub floor'),
+    t('Floors & hallway', 'Scrub and set up hallway'),
+    t('Trash & tools', 'Spray out trash cans'),
+    t('Trash & tools', 'Clean brooms and dust pans'),
+    t('Prep', 'Generate next-day prep list')
+  ];
+}
+
+/* ---------- State ---------- */
+let settings, tasks, sessions, meta;
+
+function boot() {
+  const storedVersion = store.get('schemaVersion', 0);
+  if (storedVersion !== SCHEMA_VERSION) migrate(storedVersion);
+  settings = Object.assign({ closer: 'Robert', theme: 'dark' }, store.get('settings', {}));
+  tasks = store.get('taskDefinitions', null);
+  if (!tasks) { tasks = seedTasks(); saveTasks(); }
+  sessions = store.get('sessions', {});
+  meta = Object.assign({ firstRunAt: new Date().toISOString(), lastExportAt: null, lastNudgeAt: null }, store.get('meta', {}));
+  store.set('meta', meta);
+  document.documentElement.dataset.theme = settings.theme;
+}
+function saveSettings() { store.set('settings', settings); }
+function saveTasks() { store.set('taskDefinitions', tasks); }
+function saveSessions() {
+  // Soft cap: keep the newest ~180 sessions (years of headroom at ~2KB/night).
+  const dates = Object.keys(sessions).sort();
+  while (dates.length > 180) delete sessions[dates.shift()];
+  store.set('sessions', sessions);
+}
+function saveMeta() { store.set('meta', meta); }
+
+/* ---------- Sessions ---------- */
+function getSession(date, create) {
+  if (!sessions[date] && create) {
+    sessions[date] = { date, closer: settings.closer, startedAt: null, completedAt: null, entries: {}, prepList: [] };
+    saveSessions();
+  }
+  return sessions[date] || null;
+}
+// startedAt is stamped on the first real interaction of the night (not on
+// merely opening the app), so the "duration" in the summary is honest.
+function touchStart(s) {
+  if (!s.startedAt) s.startedAt = new Date().toISOString();
+}
+
+function activeTasks(list) {
+  return tasks.filter(t => t.list === list && !t.archived).sort((a, b) => a.sortOrder - b.sortOrder);
+}
+// A task counts as handled when done or n/a ("doesn't apply tonight").
+// Skipped is deliberate ("saw it, didn't do it") and does NOT count.
+function progressOf(session, list) {
+  const ts = activeTasks(list);
+  const done = ts.filter(t => {
+    const e = session && session.entries[t.id];
+    return e && (e.status === 'done' || e.status === 'na');
+  }).length;
+  return { done, total: ts.length };
+}
+
+function setEntry(taskId, patch) {
+  const s = getSession(todayBusinessDate(), true);
+  touchStart(s);
+  const e = s.entries[taskId] || {};
+  Object.assign(e, patch, { timestamp: new Date().toISOString() });
+  if (e.status === null) delete s.entries[taskId]; else s.entries[taskId] = e;
+  saveSessions();
+  return s;
+}
+
+/* Count below par -> amber; at or below half par -> red. */
+function parSeverity(task, value) {
+  if (task.type !== 'count' || task.par == null || value == null || value === '') return null;
+  const v = Number(value);
+  if (isNaN(v) || v >= task.par) return null;
+  return v <= task.par / 2 ? 'red' : 'amber';
+}
+
+/* Auto prep entries: a below-par count adds "Prep/order: <label>" to
+   tonight's prep list; re-entering a value at/above par removes it. */
+function syncAutoPrep(session, task, value) {
+  const text = 'Prep/order: ' + task.label;
+  const idx = session.prepList.findIndex(p => p.source === 'auto' && p.text === text);
+  const low = parSeverity(task, value) !== null;
+  if (low && idx === -1) session.prepList.push({ text, source: 'auto', done: false });
+  if (!low && idx !== -1) session.prepList.splice(idx, 1);
+  saveSessions();
+}
+
+/* Most recent past session that has prep items — pinned on tonight's view. */
+function previousPrepSession(today) {
+  const dates = Object.keys(sessions).filter(d => d < today).sort().reverse();
+  for (const d of dates) {
+    if (sessions[d].prepList && sessions[d].prepList.length) return sessions[d];
+  }
+  return null;
+}
+
+/* ---------- Export / import ---------- */
+function exportData() {
+  return {
+    app: 'bamboo-close',
+    schemaVersion: SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    settings, taskDefinitions: tasks, sessions
+  };
+}
+function importData(obj) {
+  if (!obj || obj.app !== 'bamboo-close') throw new Error('Not a Bamboo Close backup file.');
+  if (!Number.isInteger(obj.schemaVersion)) throw new Error('Backup has no schemaVersion.');
+  if (obj.schemaVersion > SCHEMA_VERSION) throw new Error('Backup is from a newer app version (v' + obj.schemaVersion + ').');
+  if (!Array.isArray(obj.taskDefinitions) || typeof obj.sessions !== 'object') throw new Error('Backup is missing data.');
+  settings = Object.assign({ closer: 'Robert', theme: 'dark' }, obj.settings || {});
+  tasks = obj.taskDefinitions;
+  sessions = obj.sessions || {};
+  saveSettings(); saveTasks(); saveSessions();
+  store.set('schemaVersion', obj.schemaVersion);
+  migrate(obj.schemaVersion); // bring older backups forward
+  document.documentElement.dataset.theme = settings.theme;
+}
+
+/* ---------- Formatting helpers ---------- */
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fmtBizDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+function fmtTime(iso) {
+  return iso ? new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
+}
+function fmtDuration(startIso, endIso) {
+  if (!startIso || !endIso) return '—';
+  const mins = Math.max(0, Math.round((new Date(endIso) - new Date(startIso)) / 60000));
+  return mins >= 60 ? Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm' : mins + 'm';
+}
+function lowFlags(session) {
+  const out = [];
+  for (const t of tasks.filter(t => t.type === 'count')) {
+    const e = session.entries[t.id];
+    if (e && e.value != null && e.value !== '') {
+      const sev = parSeverity(t, e.value);
+      if (sev) out.push({ task: t, value: e.value, sev });
+    }
+  }
+  return out;
+}
+
+/* ---------- UI plumbing ---------- */
+const $ = sel => document.querySelector(sel);
+let currentView = 'tonight';
+let collapsedSections = {}; // in-memory only; everything reopens tomorrow
+let expandedTask = null;    // task id whose note/status panel is open
+
+function show(view) {
+  currentView = view;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  $('#view-' + view).classList.add('active');
+  document.querySelectorAll('#bottomnav button').forEach(b => b.classList.toggle('active', b.dataset.nav === view));
+  render();
+}
+document.querySelectorAll('#bottomnav button').forEach(b => b.addEventListener('click', () => show(b.dataset.nav)));
+
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function openModal(html) {
+  $('#modal-card').innerHTML = html;
+  $('#modal-root').classList.add('open');
+}
+function closeModal() { $('#modal-root').classList.remove('open'); $('#modal-card').innerHTML = ''; }
+$('#modal-scrim').addEventListener('click', closeModal);
+
+/* ---------- Tonight view ---------- */
+function renderTonight() {
+  const date = todayBusinessDate();
+  const s = getSession(date, false);
+  const prog = progressOf(s || { entries: {} }, 'closing');
+  const pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
+  const prev = previousPrepSession(date);
+  let html = '';
+
+  html += backupBannerHtml();
+
+  html += `<div class="card">
+    <h1>${fmtBizDate(date)} close</h1>
+    <p class="sub">Closer: <strong>${esc((s && s.closer) || settings.closer)}</strong>
+      <button class="btn small" data-act="edit-closer" style="margin-left:8px">change</button></p>
+    <div><strong>${prog.done} of ${prog.total}</strong> done${s && s.completedAt ? ' · <span style="color:var(--accent)">finished ' + fmtTime(s.completedAt) + '</span>' : ''}</div>
+    <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+  </div>`;
+
+  if (prev) {
+    html += `<div class="card" style="border-color:var(--accent-dim)">
+      <h2 style="margin-top:0">Yesterday's prep list <span class="muted" style="text-transform:none">(${fmtBizDate(prev.date)})</span></h2>
+      ${prev.prepList.map((p, i) => `
+        <div class="prep-item ${p.done ? 'done' : ''}">
+          <button class="prep-main" data-act="toggle-prev-prep" data-date="${prev.date}" data-i="${i}">
+            <span class="task-tick">✓</span><span class="prep-text grow">${esc(p.text)}</span>
+            ${p.source === 'auto' ? '<span class="prep-src">auto</span>' : ''}
+          </button>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  // Task sections (order of first appearance in sortOrder)
+  const ts = activeTasks('closing');
+  const sections = [...new Set(ts.map(t => t.section))];
+  for (const sec of sections) {
+    const secTasks = ts.filter(t => t.section === sec);
+    const secDone = secTasks.filter(t => { const e = s && s.entries[t.id]; return e && (e.status === 'done' || e.status === 'na'); }).length;
+    const collapsed = !!collapsedSections[sec];
+    html += `<button class="section-h" data-act="toggle-section" data-sec="${esc(sec)}">
+      <span>${esc(sec)}</span>
+      <span><span class="count">${secDone}/${secTasks.length}</span> <span class="chev">${collapsed ? '▸' : '▾'}</span></span>
+    </button>`;
+    if (collapsed) continue;
+    for (const t of secTasks) html += taskRowHtml(t, s);
+  }
+
+  // Tonight's prep list
+  const prep = (s && s.prepList) || [];
+  html += `<h2>Tonight's prep list</h2>
+  <div class="card">
+    ${prep.length ? prep.map((p, i) => `
+      <div class="prep-item ${p.done ? 'done' : ''}">
+        <button class="prep-main" data-act="toggle-prep" data-i="${i}">
+          <span class="task-tick">✓</span><span class="prep-text grow">${esc(p.text)}</span>
+          ${p.source === 'auto' ? '<span class="prep-src">auto</span>' : ''}
+        </button>
+        <button class="prep-del" data-act="del-prep" data-i="${i}" aria-label="Remove">✕</button>
+      </div>`).join('') : '<p class="muted" style="margin:6px 4px">Nothing yet. Low counts land here automatically.</p>'}
+    <div class="rowflex" style="margin-top:10px">
+      <input type="text" id="prep-input" class="grow" placeholder="Add prep item…" enterkeyhint="done">
+      <button class="btn" data-act="add-prep">Add</button>
+    </div>
+  </div>`;
+
+  html += `<button class="btn primary block" style="min-height:56px;font-size:18px;margin-top:8px" data-act="finish">
+    ${s && s.completedAt ? 'View close summary' : 'Finish Close'}</button>`;
+
+  $('#view-tonight').innerHTML = html;
+}
+
+function taskRowHtml(t, s) {
+  const e = s && s.entries[t.id];
+  const status = e ? e.status : null;
+  const sev = t.type === 'count' && e ? parSeverity(t, e.value) : null;
+  const cls = ['task-row', status ? 'st-' + status : '', sev ? 'flag-' + sev : ''].join(' ');
+  let val = '';
+  if (t.type === 'count') {
+    val = (e && e.value != null && e.value !== '')
+      ? `${esc(e.value)}${t.unit ? ' ' + esc(t.unit) : ''}${sev ? ' ⚠' : ''}`
+      : '<span class="muted">enter</span>';
+  }
+  const tickChar = status === 'skipped' ? '➜' : status === 'na' ? '–' : '✓';
+  const meta = t.type === 'count' && t.par != null ? `<span class="task-meta">par ${t.par}${t.unit ? ' ' + esc(t.unit) : ''}</span>` : '';
+  const notePrev = e && e.note ? `<div class="note-preview">📝 ${esc(e.note)}</div>` : '';
+  const expanded = expandedTask === t.id;
+  return `<div class="${cls}" data-task="${t.id}">
+    <button class="task-main" data-act="tap-task" data-id="${t.id}">
+      <span class="task-tick">${tickChar}</span>
+      <span class="task-label"><span class="lbl">${esc(t.label)}</span>${meta}</span>
+      <span class="task-val">${val}</span>
+    </button>
+    <button class="task-more" data-act="more-task" data-id="${t.id}" aria-label="Notes and status">⋯</button>
+  </div>
+  ${notePrev}
+  ${expanded ? taskDetailHtml(t, e) : ''}`;
+}
+
+function taskDetailHtml(t, e) {
+  const st = e ? e.status : null;
+  const b = (label, val) => `<button class="btn small ${st === val ? 'on' : ''}" data-act="set-status" data-id="${t.id}" data-status="${val}">${label}</button>`;
+  return `<div class="card task-detail" style="margin-top:-4px">
+    <div class="statusbtns">${b('Done', 'done')}${b('Skipped', 'skipped')}${b('N/A', 'na')}
+      <button class="btn small" data-act="set-status" data-id="${t.id}" data-status="">Clear</button></div>
+    <label class="fld" for="note-${t.id}">Note (e.g. "hangiri crack forming")</label>
+    <textarea id="note-${t.id}" data-act="note" data-id="${t.id}" placeholder="Optional note…">${esc(e && e.note || '')}</textarea>
+  </div>`;
+}
+
+/* ---------- Count input modal ---------- */
+function openCountModal(t) {
+  const s = getSession(todayBusinessDate(), false);
+  const e = s && s.entries[t.id];
+  openModal(`<h3>${esc(t.label)}</h3>
+    <p class="muted" style="margin:0 0 10px">${t.par != null ? 'Par: ' + t.par + (t.unit ? ' ' + esc(t.unit) : '') : 'No par set'}</p>
+    <input type="text" inputmode="decimal" id="count-input" class="bignum" autocomplete="off"
+      value="${e && e.value != null ? esc(e.value) : ''}" placeholder="0">
+    <div class="rowflex" style="margin-top:14px">
+      <button class="btn grow" data-act="count-clear" data-id="${t.id}">Clear</button>
+      <button class="btn primary grow" data-act="count-save" data-id="${t.id}">Save</button>
+    </div>`);
+  const inp = $('#count-input');
+  inp.focus(); inp.select && inp.select();
+  inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') saveCount(t.id); });
+}
+function saveCount(taskId) {
+  const t = tasks.find(x => x.id === taskId);
+  const raw = $('#count-input').value.trim().replace(',', '.');
+  if (raw === '' || isNaN(Number(raw))) { toast('Enter a number'); return; }
+  const value = Number(raw);
+  const s = setEntry(taskId, { status: 'done', value });
+  syncAutoPrep(s, t, value);
+  const sev = parSeverity(t, value);
+  if (sev) toast('Below par — added to prep list');
+  closeModal(); render();
+}
+
+/* ---------- Finish close / summary ---------- */
+function summaryText(s) {
+  const prog = progressOf(s, 'closing');
+  const flags = lowFlags(s);
+  const lines = [
+    'Bamboo Close — ' + fmtBizDate(s.date),
+    'Closer: ' + s.closer,
+    'Done: ' + prog.done + '/' + prog.total + ' · ' + fmtDuration(s.startedAt, s.completedAt)
+  ];
+  if (flags.length) lines.push('Low stock: ' + flags.map(f => f.task.label + ' (' + f.value + '/' + f.task.par + ')').join(', '));
+  if (s.prepList.length) {
+    lines.push('', 'Prep list:');
+    for (const p of s.prepList) lines.push('- ' + p.text);
+  }
+  return lines.join('\n');
+}
+function openSummary(s) {
+  const prog = progressOf(s, 'closing');
+  const flags = lowFlags(s);
+  const undone = activeTasks('closing').filter(t => { const e = s.entries[t.id]; return !e || e.status === 'skipped'; });
+  openModal(`<h3>Close summary — ${fmtBizDate(s.date)}</h3>
+    <p style="margin:4px 0"><strong>${prog.done}/${prog.total}</strong> done · duration ${fmtDuration(s.startedAt, s.completedAt)}</p>
+    ${flags.length ? '<p style="margin:4px 0">' + flags.map(f =>
+      `<span class="tag-${f.sev}">⚠ ${esc(f.task.label)}: ${esc(f.value)} (par ${f.task.par})</span>`).join('<br>') + '</p>' : ''}
+    ${undone.length ? '<p class="muted" style="margin:4px 0">Not done: ' + undone.map(t => esc(t.label)).join(', ') + '</p>' : ''}
+    ${s.prepList.length ? '<h2>Prep list</h2><ul style="margin:4px 0;padding-left:22px">' +
+      s.prepList.map(p => '<li>' + esc(p.text) + '</li>').join('') + '</ul>' : '<p class="muted">Prep list is empty.</p>'}
+    <div class="rowflex" style="margin-top:14px">
+      <button class="btn grow" data-act="share-summary">Share / copy prep list</button>
+      <button class="btn primary grow" data-act="close-modal">Done</button>
+    </div>`);
+}
+async function shareSummary() {
+  const s = getSession(todayBusinessDate(), true);
+  const text = summaryText(s);
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Bamboo Close', text }); return; } catch (e) { /* cancelled -> fall through */ }
+  }
+  try { await navigator.clipboard.writeText(text); toast('Copied to clipboard'); }
+  catch (e) {
+    // Last-resort fallback for old WebViews
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove(); toast('Copied to clipboard');
+  }
+}
+
+/* ---------- Opening view (phase-2 stub) ---------- */
+function renderOpening() {
+  const n = activeTasks('opening').length;
+  $('#view-opening').innerHTML = `<div class="card" style="margin-top:12px;text-align:center;padding:32px 16px">
+    <div style="font-size:40px">🌅</div>
+    <h1>Opening checklist</h1>
+    <p class="sub">Coming in phase 2. The data model already supports it —
+    ${n ? n + ' opening task' + (n > 1 ? 's are' : ' is') + ' defined in Settings and will show up here when this view ships.'
+        : 'you can even pre-build the task list in Settings.'}</p>
+  </div>`;
+}
+
+/* ---------- History view ---------- */
+function renderHistory() {
+  const dates = Object.keys(sessions).sort().reverse();
+  let html = '<h1 style="margin-top:12px">History</h1>';
+
+  html += sparklinesHtml();
+
+  if (!dates.length) html += '<p class="sub">No closes recorded yet.</p>';
+  for (const d of dates) {
+    const s = sessions[d];
+    const prog = progressOf(s, 'closing');
+    const pct = prog.total ? Math.round(prog.done / prog.total * 100) : 0;
+    const flags = lowFlags(s);
+    html += `<button class="hist-row" data-act="open-session" data-date="${d}">
+      <span class="grow"><strong>${fmtBizDate(d)}</strong><br>
+        <span class="muted">${esc(s.closer)} · ${pct}% · ${fmtDuration(s.startedAt, s.completedAt)}</span>
+        ${flags.length ? '<br><span class="flags">⚠ ' + flags.map(f => esc(f.task.label)).join(', ') + '</span>' : ''}
+      </span><span class="chev muted">▸</span>
+    </button>`;
+  }
+  $('#view-history').innerHTML = html;
+}
+
+/* Tiny 14-day sparkline per count task (avocado, rice, …). */
+function sparklinesHtml() {
+  const countTasks = tasks.filter(t => t.type === 'count' && !t.archived);
+  const dates = Object.keys(sessions).sort().slice(-14);
+  let out = '';
+  for (const t of countTasks) {
+    const pts = dates.map(d => { const e = sessions[d].entries[t.id]; return e && e.value != null && e.value !== '' ? Number(e.value) : null; })
+      .filter(v => v !== null);
+    if (pts.length < 2) continue;
+    const w = 140, h = 30, max = Math.max(...pts, t.par || 0, 1);
+    const xy = pts.map((v, i) => `${(i / (pts.length - 1) * (w - 4) + 2).toFixed(1)},${(h - 3 - v / max * (h - 6)).toFixed(1)}`).join(' ');
+    const parY = t.par != null ? (h - 3 - t.par / max * (h - 6)).toFixed(1) : null;
+    out += `<div class="rowflex" style="justify-content:space-between;min-height:36px">
+      <span>${esc(t.label)} <span class="muted">last ${pts.length}</span></span>
+      <svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        ${parY !== null ? `<line class="parline" x1="0" y1="${parY}" x2="${w}" y2="${parY}"/>` : ''}
+        <polyline points="${xy}"/></svg></div>`;
+  }
+  return out ? `<div class="card">${out}</div>` : '';
+}
+
+function openSessionDetail(date) {
+  const s = sessions[date];
+  if (!s) return;
+  const ts = tasks.filter(t => t.list === 'closing').sort((a, b) => a.sortOrder - b.sortOrder);
+  const rows = ts.map(t => {
+    const e = s.entries[t.id];
+    if (!e && t.archived) return '';
+    const st = e ? e.status : '—';
+    const sev = e && t.type === 'count' ? parSeverity(t, e.value) : null;
+    return `<tr style="border-bottom:1px solid var(--line)">
+      <td style="padding:8px 6px">${esc(t.label)}${e && e.note ? '<br><span class="muted" style="font-size:13px">📝 ' + esc(e.note) + '</span>' : ''}</td>
+      <td style="padding:8px 6px;white-space:nowrap;${sev ? 'color:var(--' + sev + ')' : ''}">${e && e.value != null && e.value !== '' ? esc(e.value) + (t.unit ? ' ' + esc(t.unit) : '') : ''} ${esc(st)}</td>
+      <td style="padding:8px 6px" class="muted">${e ? fmtTime(e.timestamp) : ''}</td></tr>`;
+  }).join('');
+  openModal(`<h3>${fmtBizDate(date)} — ${esc(s.closer)}</h3>
+    <p class="muted" style="margin:0 0 8px">Started ${fmtTime(s.startedAt) || '—'} · finished ${fmtTime(s.completedAt) || '—'} · ${fmtDuration(s.startedAt, s.completedAt)}</p>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:15px">${rows}</table></div>
+    ${s.prepList.length ? '<h2>Prep list</h2><ul style="padding-left:22px">' + s.prepList.map(p =>
+      `<li${p.done ? ' style="text-decoration:line-through;color:var(--muted)"' : ''}>${esc(p.text)}</li>`).join('') + '</ul>' : ''}
+    <button class="btn primary block" data-act="close-modal" style="margin-top:12px">Close</button>`);
+}
+
+/* ---------- Settings view ---------- */
+let clearArmed = false;
+function renderSettings() {
+  const byList = list => tasks.filter(t => t.list === list).sort((a, b) => a.sortOrder - b.sortOrder);
+  const taskRow = t => `<div class="rowflex" style="min-height:52px;border-bottom:1px solid var(--line);padding:2px 0">
+    <span class="grow" style="${t.archived ? 'color:var(--muted);text-decoration:line-through' : ''}">${esc(t.label)}
+      <span class="muted" style="font-size:13px">· ${esc(t.section)}${t.type === 'count' ? ' · count, par ' + (t.par ?? '—') + (t.unit ? ' ' + esc(t.unit) : '') : ''}</span></span>
+    <button class="btn small" data-act="edit-task" data-id="${t.id}">Edit</button></div>`;
+
+  $('#view-settings').innerHTML = `<h1 style="margin-top:12px">Settings</h1>
+  <div class="card">
+    <label class="fld" for="set-closer">Closer name (tonight's default)</label>
+    <input type="text" id="set-closer" value="${esc(settings.closer)}" data-act="closer-name">
+    <label class="fld">Theme</label>
+    <button class="btn" data-act="toggle-theme">${settings.theme === 'dark' ? '🌙 Dark (tap for light)' : '☀️ Light (tap for dark)'}</button>
+  </div>
+
+  <h2>Closing tasks</h2>
+  <div class="card">
+    ${byList('closing').map(taskRow).join('')}
+    <button class="btn block" data-act="add-task" data-list="closing" style="margin-top:10px">＋ Add closing task</button>
+  </div>
+
+  <h2>Opening tasks (phase 2)</h2>
+  <div class="card">
+    ${byList('opening').length ? byList('opening').map(taskRow).join('') : '<p class="muted" style="margin:4px">None yet — the checklist UI ships in phase 2, but you can define tasks now.</p>'}
+    <button class="btn block" data-act="add-task" data-list="opening" style="margin-top:10px">＋ Add opening task</button>
+  </div>
+
+  <h2>Backup</h2>
+  <div class="card">
+    <button class="btn block" data-act="export">⬇ Export backup (JSON)</button>
+    <button class="btn block" data-act="import" style="margin-top:10px">⬆ Import backup…</button>
+    <input type="file" id="import-file" accept=".json,application/json" style="display:none">
+    <p class="muted" style="font-size:14px">Last export: ${meta.lastExportAt ? new Date(meta.lastExportAt).toLocaleDateString() : 'never'}</p>
+  </div>
+
+  <h2>Danger zone</h2>
+  <div class="card">
+    <button class="btn danger block" data-act="clear-all">${clearArmed ? '⚠ Tap again to erase EVERYTHING' : 'Clear all data…'}</button>
+  </div>
+  <p class="muted" style="text-align:center;font-size:13px">Bamboo Close · schema v${SCHEMA_VERSION} · all data stays on this phone</p>`;
+}
+
+function openTaskEditor(taskId, list) {
+  const t = taskId ? tasks.find(x => x.id === taskId) : null;
+  const sections = [...new Set(tasks.filter(x => x.list === (t ? t.list : list)).map(x => x.section))];
+  openModal(`<h3>${t ? 'Edit task' : 'New task'}</h3>
+    <label class="fld">Label</label>
+    <input type="text" id="te-label" value="${t ? esc(t.label) : ''}" placeholder="e.g. Wipe down hood vents">
+    <label class="fld">List</label>
+    <select id="te-list">
+      <option value="closing" ${(!t || t.list === 'closing') ? 'selected' : ''}>Closing</option>
+      <option value="opening" ${(t ? t.list === 'opening' : list === 'opening') ? 'selected' : ''}>Opening</option>
+    </select>
+    <label class="fld">Section</label>
+    <input type="text" id="te-section" value="${t ? esc(t.section) : ''}" list="te-sections" placeholder="e.g. Sushi bar">
+    <datalist id="te-sections">${sections.map(s => `<option value="${esc(s)}">`).join('')}</datalist>
+    <label class="fld">Type</label>
+    <select id="te-type">
+      <option value="check" ${(!t || t.type === 'check') ? 'selected' : ''}>Check (tap to complete)</option>
+      <option value="count" ${(t && t.type === 'count') ? 'selected' : ''}>Count (numeric, with par)</option>
+    </select>
+    <div class="rowflex">
+      <div class="grow"><label class="fld">Par (counts only)</label>
+        <input type="text" inputmode="decimal" id="te-par" value="${t && t.par != null ? esc(t.par) : ''}" placeholder="e.g. 10"></div>
+      <div class="grow"><label class="fld">Unit (counts only)</label>
+        <input type="text" id="te-unit" value="${t ? esc(t.unit || '') : ''}" placeholder="containers / lbs / …"></div>
+    </div>
+    ${t ? `<div class="rowflex" style="margin-top:14px">
+      <button class="btn grow" data-act="task-move" data-id="${t.id}" data-dir="-1">▲ Move up</button>
+      <button class="btn grow" data-act="task-move" data-id="${t.id}" data-dir="1">▼ Move down</button>
+    </div>
+    <button class="btn block" data-act="task-archive" data-id="${t.id}" style="margin-top:10px">
+      ${t.archived ? 'Unarchive (put back on the list)' : 'Archive (hide from the list, keep history)'}</button>` : ''}
+    <div class="rowflex" style="margin-top:14px">
+      <button class="btn grow" data-act="close-modal">Cancel</button>
+      <button class="btn primary grow" data-act="task-save" data-id="${t ? t.id : ''}">Save</button>
+    </div>`);
+}
+
+function saveTaskFromEditor(taskId) {
+  const label = $('#te-label').value.trim();
+  if (!label) { toast('Give the task a name'); return; }
+  const parRaw = $('#te-par').value.trim();
+  const patch = {
+    label,
+    list: $('#te-list').value,
+    section: $('#te-section').value.trim() || 'General',
+    type: $('#te-type').value,
+    unit: $('#te-unit').value.trim(),
+    par: parRaw === '' || isNaN(Number(parRaw)) ? null : Number(parRaw)
+  };
+  if (taskId) {
+    Object.assign(tasks.find(t => t.id === taskId), patch);
+  } else {
+    const maxOrder = Math.max(0, ...tasks.filter(t => t.list === patch.list).map(t => t.sortOrder));
+    tasks.push(Object.assign({ id: uid(), sortOrder: maxOrder + 10, archived: false }, patch));
+  }
+  saveTasks(); closeModal(); render(); toast('Saved');
+}
+
+function moveTask(taskId, dir) {
+  const t = tasks.find(x => x.id === taskId);
+  const siblings = tasks.filter(x => x.list === t.list).sort((a, b) => a.sortOrder - b.sortOrder);
+  const i = siblings.indexOf(t), j = i + dir;
+  if (j < 0 || j >= siblings.length) return;
+  const other = siblings[j];
+  [t.sortOrder, other.sortOrder] = [other.sortOrder, t.sortOrder];
+  saveTasks(); render(); openTaskEditor(taskId); // keep editor open so you can keep tapping
+}
+
+/* ---------- Backup nudge (once every ~30 days, dismissible) ---------- */
+function backupBannerHtml() {
+  const THIRTY_DAYS = 30 * 24 * 3600 * 1000;
+  const last = Math.max(
+    Date.parse(meta.lastExportAt || 0) || 0,
+    Date.parse(meta.lastNudgeAt || 0) || 0,
+    Date.parse(meta.firstRunAt || 0) || 0);
+  if (Date.now() - last < THIRTY_DAYS) return '';
+  return `<div class="banner"><span class="grow">It's been a while — export a backup?</span>
+    <button class="btn small" data-act="export">Export</button>
+    <button class="btn small" data-act="dismiss-nudge" aria-label="Dismiss">✕</button></div>`;
+}
+
+function doExport() {
+  const blob = new Blob([JSON.stringify(exportData(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'bamboo-close-backup-' + todayBusinessDate() + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  meta.lastExportAt = new Date().toISOString(); saveMeta();
+  toast('Backup downloaded'); render();
+}
+
+/* ---------- Global event delegation ---------- */
+document.body.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]');
+  if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id;
+  const today = todayBusinessDate();
+
+  switch (act) {
+    case 'toggle-section':
+      collapsedSections[el.dataset.sec] = !collapsedSections[el.dataset.sec];
+      render(); break;
+
+    case 'tap-task': {
+      const t = tasks.find(x => x.id === id);
+      if (t.type === 'count') { openCountModal(t); break; }
+      const s = getSession(today, false);
+      const e = s && s.entries[id];
+      setEntry(id, { status: e && e.status === 'done' ? null : 'done' });
+      render(); break;
+    }
+    case 'more-task':
+      expandedTask = expandedTask === id ? null : id;
+      render(); break;
+
+    case 'set-status':
+      setEntry(id, { status: el.dataset.status || null });
+      render(); break;
+
+    case 'edit-closer': {
+      const s = getSession(today, true);
+      openModal(`<h3>Who's closing tonight?</h3>
+        <input type="text" id="closer-input" value="${esc(s.closer)}" enterkeyhint="done">
+        <div class="rowflex" style="margin-top:14px">
+          <button class="btn grow" data-act="close-modal">Cancel</button>
+          <button class="btn primary grow" data-act="save-closer">Save</button></div>`);
+      $('#closer-input').focus(); break;
+    }
+    case 'save-closer': {
+      const s = getSession(today, true);
+      s.closer = $('#closer-input').value.trim() || settings.closer;
+      saveSessions(); closeModal(); render(); break;
+    }
+
+    case 'count-save': saveCount(id); break;
+    case 'count-clear': {
+      const t = tasks.find(x => x.id === id);
+      const s = setEntry(id, { status: null, value: null });
+      syncAutoPrep(s, t, null);
+      closeModal(); render(); break;
+    }
+
+    case 'add-prep': {
+      const inp = $('#prep-input');
+      const text = inp.value.trim();
+      if (!text) break;
+      const s = getSession(today, true); touchStart(s);
+      s.prepList.push({ text, source: 'manual', done: false });
+      saveSessions(); render(); break;
+    }
+    case 'toggle-prep': {
+      const s = getSession(today, true);
+      const p = s.prepList[Number(el.dataset.i)];
+      if (p) { p.done = !p.done; saveSessions(); render(); }
+      break;
+    }
+    case 'del-prep': {
+      const s = getSession(today, true);
+      s.prepList.splice(Number(el.dataset.i), 1);
+      saveSessions(); render(); break;
+    }
+    case 'toggle-prev-prep': {
+      const s = sessions[el.dataset.date];
+      const p = s && s.prepList[Number(el.dataset.i)];
+      if (p) { p.done = !p.done; saveSessions(); render(); }
+      break;
+    }
+
+    case 'finish': {
+      const s = getSession(today, true);
+      if (!s.completedAt) { touchStart(s); s.completedAt = new Date().toISOString(); saveSessions(); render(); }
+      openSummary(s); break;
+    }
+    case 'share-summary': shareSummary(); break;
+
+    case 'open-session': openSessionDetail(el.dataset.date); break;
+
+    case 'toggle-theme':
+      settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = settings.theme;
+      saveSettings(); render(); break;
+
+    case 'add-task': openTaskEditor(null, el.dataset.list); break;
+    case 'edit-task': openTaskEditor(id); break;
+    case 'task-save': saveTaskFromEditor(id || null); break;
+    case 'task-move': moveTask(id, Number(el.dataset.dir)); break;
+    case 'task-archive': {
+      const t = tasks.find(x => x.id === id);
+      t.archived = !t.archived;
+      saveTasks(); closeModal(); render(); break;
+    }
+
+    case 'export': doExport(); break;
+    case 'import': $('#import-file').click(); break;
+
+    case 'clear-all':
+      if (!clearArmed) { clearArmed = true; render(); setTimeout(() => { clearArmed = false; if (currentView === 'settings') render(); }, 4000); }
+      else {
+        Object.keys(localStorage).filter(k => k.startsWith(LS_PREFIX)).forEach(k => localStorage.removeItem(k));
+        clearArmed = false; boot(); render(); toast('All data erased');
+      }
+      break;
+
+    case 'dismiss-nudge':
+      meta.lastNudgeAt = new Date().toISOString(); saveMeta(); render(); break;
+
+    case 'close-modal': closeModal(); break;
+  }
+});
+
+// Note autosave (debounced) — the textarea lives inside the task detail panel.
+let noteTimer;
+document.body.addEventListener('input', ev => {
+  const el = ev.target;
+  if (el.dataset.act !== 'note') return;
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => {
+    const s = getSession(todayBusinessDate(), true); touchStart(s);
+    const e = s.entries[el.dataset.id] || (s.entries[el.dataset.id] = { status: null, timestamp: new Date().toISOString() });
+    e.note = el.value;
+    saveSessions();
+    // no full render — keep the keyboard open and cursor in place
+  }, 400);
+});
+// Enter in the prep input adds the item.
+document.body.addEventListener('keydown', ev => {
+  if (ev.target.id === 'prep-input' && ev.key === 'Enter') {
+    ev.preventDefault();
+    document.querySelector('[data-act="add-prep"]').click();
+  }
+});
+
+// Import file handling (input lives in Settings view).
+document.body.addEventListener('change', ev => {
+  if (ev.target.id !== 'import-file') return;
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try { importData(JSON.parse(reader.result)); render(); toast('Backup imported'); }
+    catch (e) { openModal(`<h3>Import failed</h3><p>${esc(e.message)}</p><button class="btn primary block" data-act="close-modal">OK</button>`); }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+});
+
+/* ---------- Render dispatch & rollover ---------- */
+function render() {
+  ({ tonight: renderTonight, opening: renderOpening, history: renderHistory, settings: renderSettings })[currentView]();
+}
+
+// If the app sits open across the 5am boundary, re-render onto the new
+// business day when it regains focus.
+let renderedBizDate = null;
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && renderedBizDate !== todayBusinessDate()) { renderedBizDate = todayBusinessDate(); render(); }
+});
+
+/* ---------- Boot ---------- */
+boot();
+renderedBizDate = todayBusinessDate();
+render();
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {/* offline-first still fine without SW on http dev */});
+}
+
+// Exposed for testing in the console (and automated acceptance tests).
+window.BC = { businessDate, exportData, importData, parSeverity, get state() { return { settings, tasks, sessions }; }, render };
+</script>
+</body>
+</html>
