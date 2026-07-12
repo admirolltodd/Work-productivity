@@ -5,8 +5,9 @@ No accounts, no server, no build step — one `index.html` plus a service
 worker. All data lives in your phone's localStorage.
 
 **Before your first night:** open **Settings** and set the real par levels
-for Avocado and the two Rice counts (the seeded values are placeholders),
-plus pars for any sauce bottles you want low-stock warnings on.
+for Avocados (counted in cases, total for the day) and Rice (counted in
+bags — the seeded values are placeholders), plus pars for any sauce
+bottles you want low-stock warnings on.
 
 ## Features
 
@@ -16,8 +17,9 @@ plus pars for any sauce bottles you want low-stock warnings on.
   prep (thaw raw shrimp comes before skewering), bar setup, lowboy cooler
   check, last night's prep list pinned right on the view, and chef setup.
 - **Closing checklist** — collapsible sections, one-tap check-off, big
-  numeric entry for counts (rice is counted in bags first, then quarts),
-  per-task notes, progress bar, Finish Close summary with share/copy.
+  numeric entry for counts (avocados by the case — total for the day —
+  and rice by the bag), per-task notes, progress bar, Finish Close
+  summary with share/copy.
 - **Sauce bottle inventory** — count every sauce bottle (crack, sassy,
   eagle, sashimi, M3, sweet chili ponzu, ponzu, yuzu ponzu, sriracha mayo,
   Sasquatch sauce, bamboo, ginger poké, poké — editable); counts are stored

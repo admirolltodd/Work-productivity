@@ -263,7 +263,7 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
    ========================================================================= */
 
 /* ---------- Storage helpers ---------- */
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 const LS_PREFIX = 'bc_';
 const store = {
   get(key, fallback) {
@@ -363,7 +363,33 @@ function migrate(fromVersion) {
       v = 4;
       /* falls through */
     }
-    case 4:
+    case 4: {
+      // v4 -> v5: closing-list overhaul. Avocados are counted by the case
+      // (total for the day), rice by the bag only (quarts archived), the
+      // nightly inventory task is dropped (the sauce bottle count covers
+      // it), several labels reworded, and the new closing tasks added.
+      // Renames run BEFORE the missing-task fill so nothing duplicates.
+      const defs = store.get('taskDefinitions', []);
+      const byLabel = label => defs.find(t => t.list === 'closing' && !t.archived && t.label === label);
+      const rename = (from, to) => { const t = byLabel(from); if (t) t.label = to; };
+      const av = byLabel('Avocado count');
+      if (av) { av.label = 'Avocado count (total cases all day)'; av.unit = 'cases'; }
+      const rq = byLabel('Rice count (quarts)'); if (rq) rq.archived = true;
+      const ni = byLabel('Nightly inventory count'); if (ni) ni.archived = true;
+      rename('Clean hangiri before storage', 'Clean and store hangiri on shelf');
+      rename('Scrub and set up hallway', 'Set up the trays and clean them');
+      rename('Clean brooms and dust pans', 'Clean brooms and dust pans by using degreaser or bleach specifically');
+      // Fill in anything from the current seed that this install lacks.
+      const active = new Set(defs.filter(t => t.list === 'closing' && !t.archived).map(t => t.label));
+      let so = Math.max(0, ...defs.filter(t => t.list === 'closing').map(t => t.sortOrder));
+      seedTasks().filter(t => t.list === 'closing').forEach(st => {
+        if (!active.has(st.label)) { st.sortOrder = (so += 10); defs.push(st); }
+      });
+      store.set('taskDefinitions', defs);
+      v = 5;
+      /* falls through */
+    }
+    case 5:
       // current version — nothing to do.
       break;
     default:
@@ -428,22 +454,39 @@ function buildBottleTasks() {
 
 function seedTasks() {
   // PAR values below are placeholders — set the real numbers in Settings.
-  // Rice is counted in bags first, then in quarts — two separate counts.
+  // Avocados are counted by the case (total for the whole day); rice is
+  // counted by the bag only — skip that count and we may run out.
+  // There is no separate nightly inventory: the sauce bottle count covers
+  // it, everything else is a look-over, not a count.
   const closing = buildList('closing', [
-    ['Counts & inventory', 'Avocado count', { type: 'count', par: 10, unit: 'avocados' }],
-    ['Counts & inventory', 'Rice count (bags)',   { type: 'count', par: 4, unit: 'bags' }],
-    ['Counts & inventory', 'Rice count (quarts)', { type: 'count', par: 4, unit: 'quarts' }],
-    ['Counts & inventory', 'Nightly inventory count'], // detailed per-item inventory stays on paper for v1
+    ['Counts', 'Avocado count (total cases all day)', { type: 'count', par: 10, unit: 'cases' }],
+    ['Counts', 'Rice count (bags)', { type: 'count', par: 4, unit: 'bags' }],
+    ['Rice station', 'Dump rice from the chefs and the rice warmer'],
+    ['Rice station', 'Wipe out the rice warmer'],
     ['Sauce station', 'Sanitize all sauce bottles'],
     ['Sauce station', 'Wipe and refill eel sauce bottles'],
+    ['Sauce station', 'Wipe down the sesame seed bottles to sanitize them'],
     ['Sushi bar', 'Wipe down sushi bar walls'],
     ['Sushi bar', 'Sushi bar cleanup'],
     ['Sushi bar', 'Clean kakesu shelf'],
-    ['Sushi bar', 'Clean hangiri before storage'],
+    ['Sushi bar', 'Clean and store hangiri on shelf'],
+    ['Sushi bar', 'Clean the chef cutting boards with Dawn and bleach'],
+    ['Equipment', 'Unplug and move the ovens'],
+    ['Equipment', 'Change out the foils on the ovens'],
+    ['Equipment', 'Move the dish rack CAREFULLY'],
+    ['Equipment', 'Scrub out the hand sinks and replace the pans for soap and sanitizer'],
+    ['Equipment', 'Take the sushi cart out back — scrub with bleach and Dawn, hose off, dry; must be 100% sanitized'],
+    ['Coolers & walk-in', 'Change out the towels along the bottom of the lowboy cooler (they absorb door moisture)'],
+    ['Coolers & walk-in', 'Wipe down and sanitize the cooler'],
+    ['Coolers & walk-in', 'Put the avocados and the box of avocados into the walk-in'],
+    ['Coolers & walk-in', 'Check pulls — 2× yellowtail, 2× smoked salmon, 4× trays krab stick, 2× boxes sushi shrimp, 2× bags small shrimp, 2× bags small scallops, masago, mackerel, tilapia, escolar in the walk-in'],
+    ['Coolers & walk-in', 'Put fish away'],
+    ['Coolers & walk-in', 'Put octopus and surf clam back in the freezer'],
     ['Floors & hallway', 'Sweep and scrub floor'],
-    ['Floors & hallway', 'Scrub and set up hallway'],
+    ['Floors & hallway', 'Set up the trays and clean them'],
     ['Trash & tools', 'Spray out trash cans'],
-    ['Trash & tools', 'Clean brooms and dust pans'],
+    ['Trash & tools', 'Take out the trash'],
+    ['Trash & tools', 'Clean brooms and dust pans by using degreaser or bleach specifically'],
     ['Prep', 'Generate next-day prep list']
   ]);
   return closing.concat(buildOpeningTasks(), buildBottleTasks());
