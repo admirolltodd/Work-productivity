@@ -116,11 +116,25 @@ nav#bottomnav button.active { color: var(--accent); }
 .task-row.st-done .lbl { text-decoration: line-through; }
 .task-label { flex: 1; }
 .task-meta { font-size: 13px; color: var(--muted); display: block; }
-.task-val { font-weight: 700; font-size: 18px; padding-right: 4px; white-space: nowrap; }
 .task-row.flag-amber { border-color: var(--amber); }
-.task-row.flag-amber .task-val { color: var(--amber); }
 .task-row.flag-red { border-color: var(--red); }
-.task-row.flag-red .task-val { color: var(--red); }
+
+/* V2: permanent inline count inputs (no modal). Border color = state:
+   blank -> muted/low contrast, counted at/above par -> crisp, below par
+   -> amber/red. The .task-row prefix out-specifies the generic
+   input[type=text]{width:100%} rule that appears later in this sheet. */
+.task-row.count-type .task-main { cursor: text; }
+.task-row input.inline-count-input {
+  flex: none; width: 92px; min-height: 48px; margin-right: 8px;
+  text-align: center; font-weight: 700; font-size: 18px;
+  background: var(--bg2); color: var(--text);
+  border: 1.5px solid var(--line); border-radius: 10px; padding: 6px 8px;
+}
+.task-row input.inline-count-input::placeholder { color: var(--muted); opacity: .45; }
+.task-row.counted { border-color: var(--muted); }
+.task-row.counted input.inline-count-input { border-color: var(--muted); }
+.task-row.flag-amber input.inline-count-input { border-color: var(--amber); color: var(--amber); }
+.task-row.flag-red input.inline-count-input { border-color: var(--red); color: var(--red); }
 .task-more {
   flex: none; width: 56px; min-height: 56px;
   background: none; border: none; border-left: 1px solid var(--line);
@@ -209,7 +223,6 @@ label.fld { display: block; margin: 10px 0 4px; font-size: 14px; color: var(--mu
   border-radius: 18px 18px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
 }
 #modal-card h3 { margin: 0 0 8px; font-size: 19px; }
-.bignum { font-size: 34px; text-align: center; font-weight: 800; }
 
 /* ---------- Banner & toast ---------- */
 .banner {
@@ -568,9 +581,13 @@ function syncAutoPrep(session, task, value) {
   const text = 'Prep/order: ' + task.label;
   const idx = session.prepList.findIndex(p => p.source === 'auto' && p.text === text);
   const low = parSeverity(task, value) !== null;
-  if (low && idx === -1) session.prepList.push({ text, source: 'auto', done: false });
-  if (!low && idx !== -1) session.prepList.splice(idx, 1);
+  // V2: report what happened so inline saves can toast ONLY on a fresh
+  // add (one toast per dip below par, not one per keystroke).
+  let result = null;
+  if (low && idx === -1) { session.prepList.push({ text, source: 'auto', done: false }); result = 'added'; }
+  else if (!low && idx !== -1) { session.prepList.splice(idx, 1); result = 'removed'; }
   saveSessions();
+  return result;
 }
 
 /* Most recent past session that has prep items — pinned on tonight's view. */
@@ -694,6 +711,30 @@ function sectionsHtml(list, s) {
   return html;
 }
 
+// Body of tonight's prep card (chips + items + manual add). Separate from
+// renderClosing so refreshCountUi can patch the card in place. [V2]
+function prepCardInnerHtml(s) {
+  const prep = (s && s.prepList) || [];
+  const quickItems = settings.commonPrepItems || [];
+  return `${quickItems.length ? `<p class="muted" style="margin:0 0 6px;font-size:14px">Tap to add to tonight's prep:</p>
+    <div class="chips">${quickItems.map(item => {
+      const on = prep.some(p => p.text === item);
+      return `<button class="btn small chip ${on ? 'on' : ''}" data-act="quick-prep" data-item="${esc(item)}">${on ? '✓ ' : ''}${esc(item)}</button>`;
+    }).join('')}</div><hr class="sep" style="margin:12px 0">` : ''}
+    ${prep.length ? prep.map((p, i) => `
+      <div class="prep-item ${p.done ? 'done' : ''}">
+        <button class="prep-main" data-act="toggle-prep" data-i="${i}">
+          <span class="task-tick">✓</span><span class="prep-text grow">${esc(p.text)}</span>
+          ${p.source === 'auto' ? '<span class="prep-src">auto</span>' : ''}
+        </button>
+        <button class="prep-del" data-act="del-prep" data-i="${i}" aria-label="Remove">✕</button>
+      </div>`).join('') : '<p class="muted" style="margin:6px 4px">Nothing yet. Tap the standard items above, type your own below — low counts land here automatically.</p>'}
+    <div class="rowflex" style="margin-top:10px">
+      <input type="text" id="prep-input" class="grow" placeholder="Add anything else…" enterkeyhint="done">
+      <button class="btn" data-act="add-prep">Add</button>
+    </div>`;
+}
+
 function prevPrepCardHtml(date) {
   const prev = previousPrepSession(date);
   if (!prev) return '';
@@ -743,36 +784,17 @@ function renderClosing() {
     <h1 style="margin-top:0">${fmtBizDate(date)} close</h1>
     <p class="sub">Closer: <strong>${esc((s && s.closer) || settings.closer)}</strong>
       <button class="btn small" data-act="edit-closer" style="margin-left:8px">change</button></p>
-    <div><strong>${prog.done} of ${prog.total}</strong> done${s && s.completedAt ? ' · <span style="color:var(--accent)">finished ' + fmtTime(s.completedAt) + '</span>' : ''}</div>
+    <div><strong class="prog-text">${prog.done} of ${prog.total}</strong> done${s && s.completedAt ? ' · <span style="color:var(--accent)">finished ' + fmtTime(s.completedAt) + '</span>' : ''}</div>
     <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
   </div>`;
 
   html += prevPrepCardHtml(date);
   html += sectionsHtml('closing', s);
 
-  // Tonight's prep list
-  const prep = (s && s.prepList) || [];
-  const quickItems = settings.commonPrepItems || [];
+  // Tonight's prep list — the card body lives in prepCardInnerHtml so
+  // inline count saves can patch just this card without a full render.
   html += `<h2>Tonight's prep list</h2>
-  <div class="card">
-    ${quickItems.length ? `<p class="muted" style="margin:0 0 6px;font-size:14px">Tap to add to tonight's prep:</p>
-    <div class="chips">${quickItems.map(item => {
-      const on = prep.some(p => p.text === item);
-      return `<button class="btn small chip ${on ? 'on' : ''}" data-act="quick-prep" data-item="${esc(item)}">${on ? '✓ ' : ''}${esc(item)}</button>`;
-    }).join('')}</div><hr class="sep" style="margin:12px 0">` : ''}
-    ${prep.length ? prep.map((p, i) => `
-      <div class="prep-item ${p.done ? 'done' : ''}">
-        <button class="prep-main" data-act="toggle-prep" data-i="${i}">
-          <span class="task-tick">✓</span><span class="prep-text grow">${esc(p.text)}</span>
-          ${p.source === 'auto' ? '<span class="prep-src">auto</span>' : ''}
-        </button>
-        <button class="prep-del" data-act="del-prep" data-i="${i}" aria-label="Remove">✕</button>
-      </div>`).join('') : '<p class="muted" style="margin:6px 4px">Nothing yet. Tap the standard items above, type your own below — low counts land here automatically.</p>'}
-    <div class="rowflex" style="margin-top:10px">
-      <input type="text" id="prep-input" class="grow" placeholder="Add anything else…" enterkeyhint="done">
-      <button class="btn" data-act="add-prep">Add</button>
-    </div>
-  </div>`;
+  <div class="card" id="prep-card">${prepCardInnerHtml(s)}</div>`;
 
   html += `<button class="btn primary block" style="min-height:56px;font-size:18px;margin-top:8px" data-act="finish">
     ${s && s.completedAt ? 'View close summary' : 'Finish Close'}</button>`;
@@ -783,28 +805,40 @@ function renderClosing() {
 function taskRowHtml(t, s) {
   const e = s && s.entries[t.id];
   const status = e ? e.status : null;
-  const sev = t.type === 'count' && e ? parSeverity(t, e.value) : null;
-  const cls = ['task-row', status ? 'st-' + status : '', sev ? 'flag-' + sev : ''].join(' ');
-  let val = '';
-  if (t.type === 'count') {
-    val = (e && e.value != null && e.value !== '')
-      ? `${esc(e.value)}${t.unit ? ' ' + esc(t.unit) : ''}${sev ? ' ⚠' : ''}`
-      : '<span class="muted">enter</span>';
-  }
-  const tickChar = status === 'skipped' ? '➜' : status === 'na' ? '–' : '✓';
-  const meta = t.type === 'count' && t.par != null ? `<span class="task-meta">par ${t.par}${t.unit ? ' ' + esc(t.unit) : ''}</span>` : '';
   const notePrev = e && e.note ? `<div class="note-preview">📝 ${esc(e.note)}</div>` : '';
-  const expanded = expandedTask === t.id;
-  return `<div class="${cls}" data-task="${t.id}">
+  const tail = `${notePrev}${expandedTask === t.id ? taskDetailHtml(t, e) : ''}`;
+
+  if (t.type === 'count') {
+    // V2: permanent inline input — no modal, no save button. Values save as
+    // you type (debounced) and Enter hops to the next count input. Note the
+    // task-main is a DIV here: an <input> inside a <button> is invalid HTML
+    // and swallows focus events on Android (edge case: nested interactive).
+    const val = e && e.value != null && e.value !== '' ? String(e.value) : '';
+    const sev = val === '' ? null : parSeverity(t, e.value);
+    const stateCls = val === '' ? '' : (sev ? 'flag-' + sev : 'counted');
+    const meta = t.par != null
+      ? `<span class="task-meta">par ${t.par}${t.unit ? ' ' + esc(t.unit) : ''}</span>`
+      : (t.unit ? `<span class="task-meta">${esc(t.unit)}</span>` : '');
+    return `<div class="task-row count-type ${stateCls}" data-task="${t.id}">
+    <div class="task-main" data-act="tap-task" data-id="${t.id}">
+      <span class="task-label"><span class="lbl">${esc(t.label)}</span>${meta}</span>
+      <input type="text" inputmode="decimal" class="inline-count-input" data-task-id="${t.id}"
+        value="${esc(val)}" placeholder="0" enterkeyhint="next" autocomplete="off" aria-label="${esc(t.label)}">
+    </div>
+    <button class="task-more" data-act="more-task" data-id="${t.id}" aria-label="Notes and status">⋯</button>
+  </div>
+  ${tail}`;
+  }
+
+  const tickChar = status === 'skipped' ? '➜' : status === 'na' ? '–' : '✓';
+  return `<div class="task-row ${status ? 'st-' + status : ''}" data-task="${t.id}">
     <button class="task-main" data-act="tap-task" data-id="${t.id}">
       <span class="task-tick">${tickChar}</span>
-      <span class="task-label"><span class="lbl">${esc(t.label)}</span>${meta}</span>
-      <span class="task-val">${val}</span>
+      <span class="task-label"><span class="lbl">${esc(t.label)}</span></span>
     </button>
     <button class="task-more" data-act="more-task" data-id="${t.id}" aria-label="Notes and status">⋯</button>
   </div>
-  ${notePrev}
-  ${expanded ? taskDetailHtml(t, e) : ''}`;
+  ${tail}`;
 }
 
 function taskDetailHtml(t, e) {
@@ -818,32 +852,74 @@ function taskDetailHtml(t, e) {
   </div>`;
 }
 
-/* ---------- Count input modal ---------- */
-function openCountModal(t) {
-  const s = getSession(todayBusinessDate(), false);
-  const e = s && s.entries[t.id];
-  openModal(`<h3>${esc(t.label)}</h3>
-    <p class="muted" style="margin:0 0 10px">${t.par != null ? 'Par: ' + t.par + (t.unit ? ' ' + esc(t.unit) : '') : 'No par set'}</p>
-    <input type="text" inputmode="decimal" id="count-input" class="bignum" autocomplete="off"
-      value="${e && e.value != null ? esc(e.value) : ''}" placeholder="0">
-    <div class="rowflex" style="margin-top:14px">
-      <button class="btn grow" data-act="count-clear" data-id="${t.id}">Clear</button>
-      <button class="btn primary grow" data-act="count-save" data-id="${t.id}">Save</button>
-    </div>`);
-  const inp = $('#count-input');
-  inp.focus(); inp.select && inp.select();
-  inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') saveCount(t.id); });
-}
-function saveCount(taskId) {
+/* ---------- V2: inline count saving (replaces the count modal) ----------
+   Saves must NOT trigger render(): a full re-render destroys the focused
+   input, closes the phone keyboard, and breaks the Enter-key conveyor.
+   Instead we patch only the bits of the DOM that can change: the row's
+   state classes, the header progress, section counters, and (on the
+   closing view) the prep card. */
+function saveInlineCount(taskId, raw) {
   const t = tasks.find(x => x.id === taskId);
-  const raw = $('#count-input').value.trim().replace(',', '.');
-  if (raw === '' || isNaN(Number(raw))) { toast('Enter a number'); return; }
-  const value = Number(raw);
-  const s = setEntry(taskId, { status: 'done', value });
-  syncAutoPrep(s, t, value);
-  const sev = parSeverity(t, value);
-  if (sev) toast('Below par — added to prep list');
-  closeModal(); render();
+  if (!t) return;
+  const norm = String(raw).trim().replace(',', '.');
+  const s0 = getSession(todayBusinessDate(), false);
+  const prevE = s0 && s0.entries[taskId];
+  if (norm === '') {
+    // Empty field = the only clear path now that the modal's Clear is gone.
+    if (!prevE || prevE.value == null) return;
+    const s = setEntry(taskId, { status: null, value: null });
+    syncAutoPrep(s, t, null);
+  } else {
+    if (isNaN(Number(norm))) return; // mid-typing garbage: never saved, last valid state wins
+    const value = Number(norm);
+    if (prevE && prevE.status === 'done' && prevE.value === value) return; // no-op, no toast churn
+    const s = setEntry(taskId, { status: 'done', value });
+    if (syncAutoPrep(s, t, value) === 'added') toast('Below par — added to prep list');
+  }
+  refreshCountUi(taskId);
+}
+
+// Targeted DOM patch after an inline save — everything except the focused
+// input itself, so focus (and the keyboard) survive.
+function refreshCountUi(taskId) {
+  const t = tasks.find(x => x.id === taskId);
+  const s = getSession(todayBusinessDate(), false);
+  const e = s && s.entries[taskId];
+  const row = document.querySelector('.task-row[data-task="' + taskId + '"]');
+  if (row) {
+    row.classList.remove('counted', 'flag-amber', 'flag-red');
+    if (e && e.value != null && e.value !== '') {
+      const sev = parSeverity(t, e.value);
+      row.classList.add(sev ? 'flag-' + sev : 'counted');
+    }
+  }
+  const view = document.querySelector('.view.active');
+  if (!view) return;
+  const prog = progressOf(s || { entries: {} }, t.list);
+  const txt = view.querySelector('.prog-text');
+  if (txt) txt.textContent = prog.done + ' of ' + prog.total;
+  const bar = view.querySelector('.progress-bar');
+  if (bar) bar.style.width = (prog.total ? Math.round(prog.done / prog.total * 100) : 0) + '%';
+  view.querySelectorAll('.section-h').forEach(h => {
+    const key = h.dataset.sec || '';
+    const cut = key.indexOf('|'); // sections may themselves contain "|"
+    if (cut === -1) return;
+    const list = key.slice(0, cut), sec = key.slice(cut + 1);
+    const secTasks = activeTasks(list).filter(x => x.section === sec);
+    const done = secTasks.filter(x => { const en = s && s.entries[x.id]; return en && (en.status === 'done' || en.status === 'na'); }).length;
+    const span = h.querySelector('.count');
+    if (span) span.textContent = done + '/' + secTasks.length;
+  });
+  // Prep card (closing view only) — patch its innerHTML, keeping any text
+  // the closer had half-typed into the manual add field.
+  const prepCard = view.querySelector('#prep-card');
+  if (prepCard) {
+    const draft = prepCard.querySelector('#prep-input');
+    const keep = draft ? draft.value : '';
+    prepCard.innerHTML = prepCardInnerHtml(getSession(todayBusinessDate(), false));
+    const again = prepCard.querySelector('#prep-input');
+    if (again) again.value = keep;
+  }
 }
 
 /* ---------- Finish close / summary ---------- */
@@ -902,7 +978,7 @@ function renderOpening() {
   $('#view-opening').innerHTML = backBar + `
     <div class="card">
       <h1 style="margin-top:0">🌅 ${fmtBizDate(date)} opening</h1>
-      <div><strong>${prog.done} of ${prog.total}</strong> done</div>
+      <div><strong class="prog-text">${prog.done} of ${prog.total}</strong> done</div>
       <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
     </div>` +
     prevPrepCardHtml(date) + // "Check prep list from night before" — here it is
@@ -918,8 +994,8 @@ function renderBottles() {
   $('#view-bottles').innerHTML = backBar + `
     <div class="card">
       <h1 style="margin-top:0">🧴 Sauce bottle inventory</h1>
-      <p class="sub" style="margin:0 0 6px">${fmtBizDate(date)} — tap a bottle to enter its count.</p>
-      <div><strong>${prog.done} of ${prog.total}</strong> counted</div>
+      <p class="sub" style="margin:0 0 6px">${fmtBizDate(date)} — type each count — Enter/Next hops to the next bottle.</p>
+      <div><strong class="prog-text">${prog.done} of ${prog.total}</strong> counted</div>
       <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
     </div>` +
     sectionsHtml('bottles', s) +
@@ -1234,7 +1310,12 @@ document.body.addEventListener('click', ev => {
 
     case 'tap-task': {
       const t = tasks.find(x => x.id === id);
-      if (t.type === 'count') { openCountModal(t); break; }
+      if (t.type === 'count') {
+        // V2: tapping anywhere on a count row just focuses its inline input.
+        const inp = document.querySelector('.inline-count-input[data-task-id="' + id + '"]');
+        if (inp && document.activeElement !== inp) { inp.focus(); inp.select(); }
+        break;
+      }
       const s = getSession(today, false);
       const e = s && s.entries[id];
       setEntry(id, { status: e && e.status === 'done' ? null : 'done' });
@@ -1261,14 +1342,6 @@ document.body.addEventListener('click', ev => {
       const s = getSession(today, true);
       s.closer = $('#closer-input').value.trim() || settings.closer;
       saveSessions(); closeModal(); render(); break;
-    }
-
-    case 'count-save': saveCount(id); break;
-    case 'count-clear': {
-      const t = tasks.find(x => x.id === id);
-      const s = setEntry(id, { status: null, value: null });
-      syncAutoPrep(s, t, null);
-      closeModal(); render(); break;
     }
 
     case 'add-prep': {
@@ -1351,8 +1424,16 @@ document.body.addEventListener('click', ev => {
 // Debounced autosave for free-text fields (no full render so the keyboard
 // stays open and the cursor stays put).
 let noteTimer;
+let inlineTimer; // V2: pending inline count save
 document.body.addEventListener('input', ev => {
   const el = ev.target;
+  if (el.classList && el.classList.contains('inline-count-input')) {
+    // V2: save as you type — debounced so mid-typing values ("1" on the way
+    // to "12") usually never land, avoiding par-flag/prep churn.
+    clearTimeout(inlineTimer);
+    inlineTimer = setTimeout(() => saveInlineCount(el.dataset.taskId, el.value), 350);
+    return;
+  }
   if (el.dataset.act === 'note') {
     clearTimeout(noteTimer);
     noteTimer = setTimeout(() => {
@@ -1377,10 +1458,40 @@ document.body.addEventListener('input', ev => {
 });
 // Enter in the prep input adds the item.
 document.body.addEventListener('keydown', ev => {
-  if (ev.target.id === 'prep-input' && ev.key === 'Enter') {
+  const el = ev.target;
+  // V2: Enter-key conveyor belt — mobile keyboards render Enter as "Next"
+  // (enterkeyhint="next"). Flush the save synchronously, then hop to the
+  // next count input in the ACTIVE view only; blur at the end of the line
+  // so the keyboard drops away.
+  if (el.classList && el.classList.contains('inline-count-input') && ev.key === 'Enter') {
+    ev.preventDefault();
+    clearTimeout(inlineTimer);
+    saveInlineCount(el.dataset.taskId, el.value);
+    const inputs = [...document.querySelectorAll('.view.active .inline-count-input')];
+    const i = inputs.indexOf(el);
+    if (i > -1 && i < inputs.length - 1) { inputs[i + 1].focus(); inputs[i + 1].select(); }
+    else el.blur();
+    return;
+  }
+  if (el.id === 'prep-input' && ev.key === 'Enter') {
     ev.preventDefault();
     document.querySelector('[data-act="add-prep"]').click();
   }
+});
+
+// V2: leaving a count input flushes any pending save immediately (a tap on
+// a check row fires blur BEFORE its click, so the debounced value can't be
+// lost to the full render that follows). Garbage left in the field snaps
+// back to the last stored value.
+document.body.addEventListener('focusout', ev => {
+  const el = ev.target;
+  if (!el.classList || !el.classList.contains('inline-count-input')) return;
+  clearTimeout(inlineTimer);
+  saveInlineCount(el.dataset.taskId, el.value);
+  const s = getSession(todayBusinessDate(), false);
+  const e = s && s.entries[el.dataset.taskId];
+  const norm = el.value.trim().replace(',', '.');
+  if (norm !== '' && isNaN(Number(norm))) el.value = e && e.value != null ? String(e.value) : '';
 });
 
 // Import file handling (input lives in Settings view).
