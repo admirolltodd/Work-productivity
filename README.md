@@ -15,9 +15,11 @@ the rice unit (containers / lbs / batches — it ships as "containers").
   share/copy.
 - **Business-day aware** — the "day" runs 5:00am → 4:59am, so a box checked
   at 12:40am still lands on the right night's close.
-- **Prep list** — counts below par auto-add "Prep/order: …" items; add your
-  own manually. Last night's prep list is pinned to the top of the next
-  night's view.
+- **Prep list** — a standard checklist (tartar, kakasu, bamboo sauce, spicy
+  mayo, asparagus, ginger backups, wasabi backups — editable in Settings)
+  you add with one tap, plus a free-text field for anything else; counts
+  below par auto-add "Prep/order: …" items. Last night's prep list is
+  pinned to the top of the next night's view.
 - **History** — every close with completion %, duration, low-stock flags,
   full detail, and 14-day count sparklines.
 - **Settings** — edit every task (add / rename / reorder / archive, section,

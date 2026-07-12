@@ -164,6 +164,7 @@ label.fld { display: block; margin: 10px 0 4px; font-size: 14px; color: var(--mu
 .prep-item.done .prep-text { text-decoration: line-through; color: var(--muted); }
 .prep-src { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
 .prep-del { flex: none; width: 52px; min-height: 52px; background: none; border: none; color: var(--muted); font-size: 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---------- History ---------- */
 .hist-row {
@@ -239,7 +240,7 @@ hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
    ========================================================================= */
 
 /* ---------- Storage helpers ---------- */
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const LS_PREFIX = 'bc_';
 const store = {
   get(key, fallback) {
@@ -284,15 +285,19 @@ function migrate(fromVersion) {
     case 0: // pre-first-run: nothing stored yet, seeding handles it
       v = 1;
       /* falls through */
-    case 1:
+    case 1: {
+      // v1 -> v2: settings gained commonPrepItems (the standard prep
+      // quick-add checklist). Older data just gets the default list.
+      const s = store.get('settings', {});
+      if (!Array.isArray(s.commonPrepItems)) {
+        s.commonPrepItems = DEFAULT_PREP_ITEMS.slice();
+        store.set('settings', s);
+      }
+      v = 2;
+      /* falls through */
+    }
+    case 2:
       // current version — nothing to do.
-      // Future example:
-      // case 1:
-      //   const tasks = store.get('taskDefinitions', []);
-      //   tasks.forEach(t => { t.newField = t.newField ?? 'default'; });
-      //   store.set('taskDefinitions', tasks);
-      //   v = 2;
-      //   /* falls through */
       break;
     default:
       // Data written by a NEWER app version. Don't touch it.
@@ -302,6 +307,13 @@ function migrate(fromVersion) {
 }
 
 /* ---------- Seed data ---------- */
+// The standard nightly prep checklist — shown as one-tap quick-add buttons
+// on the prep list. Editable in Settings (one item per line).
+const DEFAULT_PREP_ITEMS = [
+  'Tartar', 'Kakasu', 'Bamboo sauce', 'Spicy mayo',
+  'Asparagus', 'Ginger backups', 'Wasabi backups'
+];
+
 function uid() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 function seedTasks() {
@@ -334,7 +346,7 @@ let settings, tasks, sessions, meta;
 function boot() {
   const storedVersion = store.get('schemaVersion', 0);
   if (storedVersion !== SCHEMA_VERSION) migrate(storedVersion);
-  settings = Object.assign({ closer: 'Robert', theme: 'dark' }, store.get('settings', {}));
+  settings = Object.assign({ closer: 'Robert', theme: 'dark', commonPrepItems: DEFAULT_PREP_ITEMS.slice() }, store.get('settings', {}));
   tasks = store.get('taskDefinitions', null);
   if (!tasks) { tasks = seedTasks(); saveTasks(); }
   sessions = store.get('sessions', {});
@@ -432,12 +444,13 @@ function importData(obj) {
   if (!Number.isInteger(obj.schemaVersion)) throw new Error('Backup has no schemaVersion.');
   if (obj.schemaVersion > SCHEMA_VERSION) throw new Error('Backup is from a newer app version (v' + obj.schemaVersion + ').');
   if (!Array.isArray(obj.taskDefinitions) || typeof obj.sessions !== 'object') throw new Error('Backup is missing data.');
-  settings = Object.assign({ closer: 'Robert', theme: 'dark' }, obj.settings || {});
+  settings = Object.assign({ closer: 'Robert', theme: 'dark', commonPrepItems: DEFAULT_PREP_ITEMS.slice() }, obj.settings || {});
   tasks = obj.taskDefinitions;
   sessions = obj.sessions || {};
   saveSettings(); saveTasks(); saveSessions();
   store.set('schemaVersion', obj.schemaVersion);
   migrate(obj.schemaVersion); // bring older backups forward
+  settings = store.get('settings', settings); // pick up anything migration added
   document.documentElement.dataset.theme = settings.theme;
 }
 
@@ -549,8 +562,14 @@ function renderTonight() {
 
   // Tonight's prep list
   const prep = (s && s.prepList) || [];
+  const quickItems = settings.commonPrepItems || [];
   html += `<h2>Tonight's prep list</h2>
   <div class="card">
+    ${quickItems.length ? `<p class="muted" style="margin:0 0 6px;font-size:14px">Tap to add to tonight's prep:</p>
+    <div class="chips">${quickItems.map(item => {
+      const on = prep.some(p => p.text === item);
+      return `<button class="btn small chip ${on ? 'on' : ''}" data-act="quick-prep" data-item="${esc(item)}">${on ? '✓ ' : ''}${esc(item)}</button>`;
+    }).join('')}</div><hr class="sep" style="margin:12px 0">` : ''}
     ${prep.length ? prep.map((p, i) => `
       <div class="prep-item ${p.done ? 'done' : ''}">
         <button class="prep-main" data-act="toggle-prep" data-i="${i}">
@@ -558,9 +577,9 @@ function renderTonight() {
           ${p.source === 'auto' ? '<span class="prep-src">auto</span>' : ''}
         </button>
         <button class="prep-del" data-act="del-prep" data-i="${i}" aria-label="Remove">✕</button>
-      </div>`).join('') : '<p class="muted" style="margin:6px 4px">Nothing yet. Low counts land here automatically.</p>'}
+      </div>`).join('') : '<p class="muted" style="margin:6px 4px">Nothing yet. Tap the standard items above, type your own below — low counts land here automatically.</p>'}
     <div class="rowflex" style="margin-top:10px">
-      <input type="text" id="prep-input" class="grow" placeholder="Add prep item…" enterkeyhint="done">
+      <input type="text" id="prep-input" class="grow" placeholder="Add anything else…" enterkeyhint="done">
       <button class="btn" data-act="add-prep">Add</button>
     </div>
   </div>`;
@@ -791,6 +810,12 @@ function renderSettings() {
     <button class="btn block" data-act="add-task" data-list="opening" style="margin-top:10px">＋ Add opening task</button>
   </div>
 
+  <h2>Standard prep items</h2>
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px;font-size:14px">One per line. These show as one-tap buttons on tonight's prep list. Saves as you type.</p>
+    <textarea id="set-prep-items" data-act="prep-items" rows="${Math.max(4, (settings.commonPrepItems || []).length + 1)}">${esc((settings.commonPrepItems || []).join('\n'))}</textarea>
+  </div>
+
   <h2>Backup</h2>
   <div class="card">
     <button class="btn block" data-act="export">⬇ Export backup (JSON)</button>
@@ -957,6 +982,15 @@ document.body.addEventListener('click', ev => {
       s.prepList.push({ text, source: 'manual', done: false });
       saveSessions(); render(); break;
     }
+    case 'quick-prep': {
+      // Toggle a standard prep item in/out of tonight's list by its text.
+      const item = el.dataset.item;
+      const s = getSession(today, true); touchStart(s);
+      const i = s.prepList.findIndex(p => p.text === item);
+      if (i === -1) s.prepList.push({ text: item, source: 'manual', done: false });
+      else s.prepList.splice(i, 1);
+      saveSessions(); render(); break;
+    }
     case 'toggle-prep': {
       const s = getSession(today, true);
       const p = s.prepList[Number(el.dataset.i)];
@@ -1017,19 +1051,32 @@ document.body.addEventListener('click', ev => {
   }
 });
 
-// Note autosave (debounced) — the textarea lives inside the task detail panel.
+// Debounced autosave for free-text fields (no full render so the keyboard
+// stays open and the cursor stays put).
 let noteTimer;
 document.body.addEventListener('input', ev => {
   const el = ev.target;
-  if (el.dataset.act !== 'note') return;
-  clearTimeout(noteTimer);
-  noteTimer = setTimeout(() => {
-    const s = getSession(todayBusinessDate(), true); touchStart(s);
-    const e = s.entries[el.dataset.id] || (s.entries[el.dataset.id] = { status: null, timestamp: new Date().toISOString() });
-    e.note = el.value;
-    saveSessions();
-    // no full render — keep the keyboard open and cursor in place
-  }, 400);
+  if (el.dataset.act === 'note') {
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => {
+      const s = getSession(todayBusinessDate(), true); touchStart(s);
+      const e = s.entries[el.dataset.id] || (s.entries[el.dataset.id] = { status: null, timestamp: new Date().toISOString() });
+      e.note = el.value;
+      saveSessions();
+    }, 400);
+  } else if (el.dataset.act === 'prep-items') {
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => {
+      settings.commonPrepItems = el.value.split('\n').map(x => x.trim()).filter(Boolean);
+      saveSettings();
+    }, 400);
+  } else if (el.dataset.act === 'closer-name') {
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => {
+      settings.closer = el.value.trim() || 'Robert';
+      saveSettings();
+    }, 400);
+  }
 });
 // Enter in the prep input adds the item.
 document.body.addEventListener('keydown', ev => {
