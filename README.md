@@ -76,3 +76,7 @@ once a month). Import restores everything exactly as exported.
 | `sw.js` | Service worker (cache-first app shell → offline support) |
 | `manifest.webmanifest` | PWA install metadata |
 | `icon.svg`, `icon-maskable.svg` | App icons |
+
+## License
+
+MIT — see [LICENSE](LICENSE).
